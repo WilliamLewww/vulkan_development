@@ -198,4 +198,5 @@ then
   echo 'export VULKAN_SDK="'${SCRIPTPATH}'/install"' >> install/setup-env.sh
   echo 'export VK_LAYER_PATH="'${SCRIPTPATH}'/install/share/vulkan/explicit_layer.d"' >> install/setup-env.sh
   echo 'export LD_LIBRARY_PATH="'${SCRIPTPATH}'/install/lib"' >> install/setup-env.sh
+  echo 'export PATH="$PATH:'${SCRIPTPATH}'/install/bin"' >> install/setup-env.sh
 fi
