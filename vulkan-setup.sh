@@ -97,7 +97,12 @@ mkdir -p log
 
 if [ ! -f "log/Vulkan-Headers.receipt" ]
 then
-  git clone https://github.com/KhronosGroup/Vulkan-Headers src/Vulkan-Headers
+
+  if [ ! -d "src/Vulkan-Headers" ]
+  then
+    git clone https://github.com/KhronosGroup/Vulkan-Headers src/Vulkan-Headers
+  fi
+
   git --git-dir=src/Vulkan-Headers/.git --work-tree=src/Vulkan-Headers checkout ${VULKAN_VERSION}
 
   cmake -Hsrc/Vulkan-Headers -Bbuild/Vulkan-Headers \
@@ -109,7 +114,12 @@ fi
 
 if [ ! -f "log/Vulkan-Loader.receipt" ]
 then
-  git clone https://github.com/KhronosGroup/Vulkan-Loader src/Vulkan-Loader
+
+  if [ ! -d "src/Vulkan-Loader" ]
+  then
+    git clone https://github.com/KhronosGroup/Vulkan-Loader src/Vulkan-Loader
+  fi
+
   git --git-dir=src/Vulkan-Loader/.git --work-tree=src/Vulkan-Loader checkout ${VULKAN_VERSION}
 
   cmake -Hsrc/Vulkan-Loader -Bbuild/Vulkan-Loader \
@@ -122,7 +132,12 @@ fi
 
 if [ ! -f "log/glslang.receipt" ]
 then
-  git clone https://github.com/KhronosGroup/glslang src/glslang
+
+  if [ ! -d "src/glslang" ]
+  then
+    git clone https://github.com/KhronosGroup/glslang src/glslang
+  fi
+
   git --git-dir=src/glslang/.git --work-tree=src/glslang checkout ${GLSLANG_VERSION}
 
   ln -sF $SCRIPTPATH/src/SPIRV-Tools $SCRIPTPATH/src/glslang/External/spirv-tools
@@ -136,7 +151,11 @@ fi
 
 if [ ! -f "log/Vulkan-Tools.receipt" ] && [ "${NO_VULKAN_TOOLS}" != "1" ]
 then
-  git clone https://github.com/KhronosGroup/Vulkan-Tools src/Vulkan-Tools
+
+  if [ ! -d "src/Vulkan-Tools" ]
+  then
+    git clone https://github.com/KhronosGroup/Vulkan-Tools src/Vulkan-Tools
+  fi
   git --git-dir=src/Vulkan-Tools/.git --work-tree=src/Vulkan-Tools checkout ${VULKAN_VERSION}
 
   cmake -Hsrc/Vulkan-Tools -Bbuild/Vulkan-Tools \
@@ -150,7 +169,12 @@ fi
 
 if [ ! -f "log/SPIRV-Headers.receipt" ]
 then
-  git clone https://github.com/KhronosGroup/SPIRV-Headers src/SPIRV-Headers
+
+  if [ ! -d "src/SPIRV-Headers" ]
+  then
+    git clone https://github.com/KhronosGroup/SPIRV-Headers src/SPIRV-Headers
+  fi
+
   git --git-dir=src/SPIRV-Headers/.git --work-tree=src/SPIRV-Headers checkout ${SPIRV_HEADERS_VERSION}
 
   cmake -Hsrc/SPIRV-Headers -Bbuild/SPIRV-Headers \
@@ -162,7 +186,12 @@ fi
 
 if [ ! -f "log/SPIRV-Tools.receipt" ]
 then
-  git clone https://github.com/KhronosGroup/SPIRV-Tools src/SPIRV-Tools
+
+  if [ ! -d "src/SPIRV-Tools" ]
+  then
+    git clone https://github.com/KhronosGroup/SPIRV-Tools src/SPIRV-Tools
+  fi
+
   git --git-dir=src/SPIRV-Tools/.git --work-tree=src/SPIRV-Tools checkout ${SPIRV_TOOLS_VERSION}
   
   ln -f -sF $SCRIPTPATH/src/SPIRV-Headers $SCRIPTPATH/src/SPIRV-Tools/external
@@ -176,7 +205,12 @@ fi
 
 if [ ! -f "log/Vulkan-ValidationLayers.receipt" ] && [ "${NO_VULKAN_VALIDATION_LAYERS}" != "1" ]
 then
-  git clone https://github.com/KhronosGroup/Vulkan-ValidationLayers src/Vulkan-ValidationLayers
+
+  if [ ! -d "src/Vulkan-ValidationLayers" ]
+  then
+    git clone https://github.com/KhronosGroup/Vulkan-ValidationLayers src/Vulkan-ValidationLayers
+  fi
+
   git --git-dir=src/Vulkan-ValidationLayers/.git --work-tree=src/Vulkan-ValidationLayers checkout ${VULKAN_VERSION}
 
   cmake -Hsrc/Vulkan-ValidationLayers -Bbuild/Vulkan-ValidationLayers \
