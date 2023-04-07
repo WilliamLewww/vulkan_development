@@ -51,22 +51,22 @@ fi
 
 if [ "${VULKAN_VERSION}" == "" ]
 then
-  VULKAN_VERSION='sdk-1.3.204.1'
+  VULKAN_VERSION='sdk-1.3.243.0'
 fi
 
 if [ "${SPIRV_TOOLS_VERSION}" == "" ]
 then
-  SPIRV_TOOLS_VERSION='sdk-1.3.204.1'
+  SPIRV_TOOLS_VERSION='sdk-1.3.243.0'
 fi
 
 if [ "${SPIRV_HEADERS_VERSION}" == "" ]
 then
-  SPIRV_HEADERS_VERSION='sdk-1.3.204.1'
+  SPIRV_HEADERS_VERSION='sdk-1.3.243.0'
 fi
 
 if [ "${GLSLANG_VERSION}" == "" ]
 then
-  GLSLANG_VERSION='sdk-1.3.204.1'
+  GLSLANG_VERSION='sdk-1.3.243.0'
 fi
 
 if [ "${THREADS}" == "" ]
