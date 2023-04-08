@@ -194,7 +194,7 @@ then
 
   git --git-dir=src/SPIRV-Tools/.git --work-tree=src/SPIRV-Tools checkout ${SPIRV_TOOLS_VERSION}
   
-  ln -f -sF $SCRIPTPATH/src/SPIRV-Headers $SCRIPTPATH/src/SPIRV-Tools/external
+  ln -f -sF $SCRIPTPATH/src/SPIRV-Headers $SCRIPTPATH/src/SPIRV-Tools/external/spirv-headers
 
   cmake -Hsrc/SPIRV-Tools -Bbuild/SPIRV-Tools \
       -DCMAKE_INSTALL_PREFIX=install
@@ -224,6 +224,36 @@ then
   make install -j${THREADS} -C build/Vulkan-ValidationLayers
 
   touch log/Vulkan-ValidationLayers.receipt
+fi
+
+if [ ! -f "log/SPIRV-Cross.receipt" ]
+then
+
+  if [ ! -d "src/SPIRV-Cross" ]
+  then
+    git clone https://github.com/KhronosGroup/SPIRV-Cross src/SPIRV-Cross
+  fi
+
+  cmake -Hsrc/SPIRV-Cross -Bbuild/SPIRV-Cross \
+      -DCMAKE_INSTALL_PREFIX=install
+  make install -j${THREADS} -C build/SPIRV-Cross
+
+  touch log/SPIRV-Cross.receipt
+fi
+
+if [ ! -f "log/SPIRV-Reflect.receipt" ]
+then
+
+  if [ ! -d "src/SPIRV-Reflect" ]
+  then
+    git clone https://github.com/KhronosGroup/SPIRV-Reflect src/SPIRV-Reflect
+  fi
+
+  cmake -Hsrc/SPIRV-Reflect -Bbuild/SPIRV-Reflect \
+      -DCMAKE_INSTALL_PREFIX=install
+  make install -j${THREADS} -C build/SPIRV-Reflect
+
+  touch log/SPIRV-Reflect.receipt
 fi
 
 if [ ! -f "install/setup-env.sh" ]
