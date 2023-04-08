@@ -2,11 +2,10 @@
 set -e
 
 SCRIPT_PATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
-OUT_PATH="$(dirname $SCRIPT_PATH)/_out/x86_64"
 
 SDK_VERSION='sdk-1.3.243.0'
 THREADS="$( nproc )"
-TOOLCHAIN="x86_64"
+TOOLCHAIN="x86_64-linux-gnu"
 
 for i in "$@"
 do
@@ -19,6 +18,7 @@ do
     ;;
     -tc=*|--toolchain=*)
       TOOLCHAIN="${i#*=}"
+      TOOLCHAIN_FILE_PATH="$(dirname ${SCRIPT_PATH})/toolchains/${TOOLCHAIN}.cmake"
     ;;
     -m|--minimal-build)
       CMAKE_FLAGS="-DBUILD_WSI_XCB_SUPPORT=0 \
@@ -35,11 +35,7 @@ do
   esac
 done
 
-if [ "${TOOLCHAIN}" == "aarch64" ]
-then
-    OUT_PATH="$(dirname $OUT_PATH)/aarch64"
-    TOOLCHAIN_FILE_PATH="$(dirname $SCRIPT_PATH)/toolchains/aarch64.cmake"
-fi
+OUT_PATH="$(dirname $SCRIPT_PATH)/_out/${TOOLCHAIN}"
 
 if [ "${DELETE}" == 1 ]
 then
