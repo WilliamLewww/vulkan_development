@@ -27,6 +27,9 @@ case $i in
   -t=*|--threads=*)
   THREADS="${i#*=}"
   ;;
+  -tc=*|--toolchain=*)
+  TOOLCHAIN="${i#*=}"
+  ;;
   -nvt|--no-vulkan-tools)
   NO_VULKAN_TOOLS=1
   ;;
@@ -71,7 +74,7 @@ fi
 
 if [ "${THREADS}" == "" ]
 then
-  THREADS='4'
+  THREADS="$( nproc )"
 fi
 
 echo "Vulkan Version: ${VULKAN_VERSION}"
@@ -79,6 +82,7 @@ echo "SPIRV Tools Version: ${SPIRV_TOOLS_VERSION}"
 echo "SPIRV Headers Version: ${SPIRV_HEADERS_VERSION}"
 echo "glslang Version: ${GLSLANG_VERSION}"
 echo "Threads: ${THREADS}"
+echo "Toolchain: ${TOOLCHAIN}"
 echo ""
 echo "Flags:"
 if [ "${NO_VULKAN_TOOLS}" == 1 ]
@@ -106,7 +110,9 @@ then
   git --git-dir=src/Vulkan-Headers/.git --work-tree=src/Vulkan-Headers checkout ${VULKAN_VERSION}
 
   cmake -Hsrc/Vulkan-Headers -Bbuild/Vulkan-Headers \
-      -DCMAKE_INSTALL_PREFIX=install
+      -DCMAKE_PREFIX_PATH=$SCRIPTPATH/install \
+      -DCMAKE_INSTALL_PREFIX=install \
+      -DCMAKE_TOOLCHAIN_FILE=${TOOLCHAIN}
   make install -j${THREADS} -C build/Vulkan-Headers
 
   touch log/Vulkan-Headers.receipt
@@ -123,8 +129,9 @@ then
   git --git-dir=src/Vulkan-Loader/.git --work-tree=src/Vulkan-Loader checkout ${VULKAN_VERSION}
 
   cmake -Hsrc/Vulkan-Loader -Bbuild/Vulkan-Loader \
+      -DCMAKE_PREFIX_PATH=$SCRIPTPATH/install \
       -DCMAKE_INSTALL_PREFIX=install \
-      -DVULKAN_HEADERS_INSTALL_DIR=$SCRIPTPATH/install
+      -DCMAKE_TOOLCHAIN_FILE=${TOOLCHAIN}
   make install -j${THREADS} -C build/Vulkan-Loader
 
   touch log/Vulkan-Loader.receipt
@@ -143,7 +150,9 @@ then
   ln -sF $SCRIPTPATH/src/SPIRV-Tools $SCRIPTPATH/src/glslang/External/spirv-tools
 
   cmake -Hsrc/glslang -Bbuild/glslang \
-      -DCMAKE_INSTALL_PREFIX=install
+      -DCMAKE_PREFIX_PATH=$SCRIPTPATH/install \
+      -DCMAKE_INSTALL_PREFIX=install \
+      -DCMAKE_TOOLCHAIN_FILE=${TOOLCHAIN}
   make install -j${THREADS} -C build/glslang
 
   touch log/glslang.receipt
@@ -159,9 +168,9 @@ then
   git --git-dir=src/Vulkan-Tools/.git --work-tree=src/Vulkan-Tools checkout ${VULKAN_VERSION}
 
   cmake -Hsrc/Vulkan-Tools -Bbuild/Vulkan-Tools \
+      -DCMAKE_PREFIX_PATH=$SCRIPTPATH/install \
       -DCMAKE_INSTALL_PREFIX=install \
-      -DVULKAN_HEADERS_INSTALL_DIR=$SCRIPTPATH/install \
-      -DGLSLANG_INSTALL_DIR=$SCRIPTPATH/install
+      -DCMAKE_TOOLCHAIN_FILE=${TOOLCHAIN}
   make install -j${THREADS} -C build/Vulkan-Tools
 
   touch log/Vulkan-Tools.receipt
@@ -178,7 +187,9 @@ then
   git --git-dir=src/SPIRV-Headers/.git --work-tree=src/SPIRV-Headers checkout ${SPIRV_HEADERS_VERSION}
 
   cmake -Hsrc/SPIRV-Headers -Bbuild/SPIRV-Headers \
-      -DCMAKE_INSTALL_PREFIX=install
+      -DCMAKE_PREFIX_PATH=$SCRIPTPATH/install \
+      -DCMAKE_INSTALL_PREFIX=install \
+      -DCMAKE_TOOLCHAIN_FILE=${TOOLCHAIN}
   make install -j${THREADS} -C build/SPIRV-Headers
 
   touch log/SPIRV-Headers.receipt
@@ -197,7 +208,9 @@ then
   ln -f -sF $SCRIPTPATH/src/SPIRV-Headers $SCRIPTPATH/src/SPIRV-Tools/external/spirv-headers
 
   cmake -Hsrc/SPIRV-Tools -Bbuild/SPIRV-Tools \
-      -DCMAKE_INSTALL_PREFIX=install
+      -DCMAKE_PREFIX_PATH=$SCRIPTPATH/install \
+      -DCMAKE_INSTALL_PREFIX=install \
+      -DCMAKE_TOOLCHAIN_FILE=${TOOLCHAIN}
   make install -j${THREADS} -C build/SPIRV-Tools
 
   touch log/SPIRV-Tools.receipt
@@ -214,13 +227,10 @@ then
   git --git-dir=src/Vulkan-ValidationLayers/.git --work-tree=src/Vulkan-ValidationLayers checkout ${VULKAN_VERSION}
 
   cmake -Hsrc/Vulkan-ValidationLayers -Bbuild/Vulkan-ValidationLayers \
+      -DUSE_ROBIN_HOOD_HASHING=OFF \
+      -DCMAKE_PREFIX_PATH=$SCRIPTPATH/install \
       -DCMAKE_INSTALL_PREFIX=install \
-      -DVULKAN_HEADERS_INSTALL_DIR=$SCRIPTPATH/install \
-      -DVULKAN_LOADER_INSTALL_DIR=$SCRIPTPATH/install \
-      -DGLSLANG_INSTALL_DIR=$SCRIPTPATH/install \
-      -DSPIRV_HEADERS_INSTALL_DIR=$SCRIPTPATH/install \
-      -DSPIRV_TOOLS_INSTALL_DIR=$SCRIPTPATH/install \
-      -DUSE_ROBIN_HOOD_HASHING=OFF
+      -DCMAKE_TOOLCHAIN_FILE=${TOOLCHAIN}
   make install -j${THREADS} -C build/Vulkan-ValidationLayers
 
   touch log/Vulkan-ValidationLayers.receipt
@@ -235,7 +245,9 @@ then
   fi
 
   cmake -Hsrc/SPIRV-Cross -Bbuild/SPIRV-Cross \
-      -DCMAKE_INSTALL_PREFIX=install
+      -DCMAKE_PREFIX_PATH=$SCRIPTPATH/install \
+      -DCMAKE_INSTALL_PREFIX=install \
+      -DCMAKE_TOOLCHAIN_FILE=${TOOLCHAIN}
   make install -j${THREADS} -C build/SPIRV-Cross
 
   touch log/SPIRV-Cross.receipt
@@ -250,7 +262,9 @@ then
   fi
 
   cmake -Hsrc/SPIRV-Reflect -Bbuild/SPIRV-Reflect \
-      -DCMAKE_INSTALL_PREFIX=install
+      -DCMAKE_PREFIX_PATH=$SCRIPTPATH/install \
+      -DCMAKE_INSTALL_PREFIX=install \
+      -DCMAKE_TOOLCHAIN_FILE=${TOOLCHAIN}
   make install -j${THREADS} -C build/SPIRV-Reflect
 
   touch log/SPIRV-Reflect.receipt
