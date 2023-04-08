@@ -1,13 +1,16 @@
 export DISABLE_LAYER_AMD_SWITCHABLE_GRAPHICS_1=1
 
+if [[ -z "${MESA_PATH}" ]]; then
+  MESA_PATH="/storage/projects/mesa"
+fi
 ICD_PATH="/usr/share/vulkan/icd.d"
 ICD=""
 
 if [ "$1" = "playground" ] || [ "$1" = "1" ]; then
-  ICD_PATH="/storage/projects/mesa/build/install/share/vulkan/icd.d"
+  ICD_PATH="${MESA_PATH}/build/install/share/vulkan/icd.d"
   ICD="playground_icd.x86_64.json"
 elif [ "$1" = "radeon_git" ] || [ "$1" = "2" ]; then
-  ICD_PATH="/storage/projects/mesa/build/install/share/vulkan/icd.d"
+  ICD_PATH="${MESA_PATH}/build/install/share/vulkan/icd.d"
   ICD="radeon_icd.x86_64.json"
 elif [ "$1" = "radeon" ] || [ "$1" = "3" ]; then
   ICD="radeon_icd.x86_64.json"
