@@ -18,9 +18,9 @@ elif [ "$1" = "amdgpu_pro" ] || [ "$1" = "5" ]; then
 elif [ "$1" = "nvidia" ] || [ "$1" = "6" ]; then
   ICD="nvidia_icd.json"
 elif [ "$1" = "intel" ] || [ "$1" = "7" ]; then
-  ICD="intel_icd.json"
+  ICD="intel_icd.x86_64.json"
 elif [ "$1" = "intel_hasvk" ] || [ "$1" = "8" ]; then
-  ICD="intel_hasvk_icd.json"
+  ICD="intel_hasvk_icd.x86_64.json"
 else
   echo "1)  playground:   Experimental Open Source Driver for Vulkan (local)"
   echo "2)  radeon_git:   MESA Open Source Driver for Vulkan (local)"
