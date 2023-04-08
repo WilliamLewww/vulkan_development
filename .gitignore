@@ -1,7 +1,4 @@
-install
-build
-log
-src
+_out
 
 # Prerequisites
 *.d

@@ -10,6 +10,8 @@ set(CMAKE_CROSSCOMPILING TRUE)
 set(CMAKE_C_COMPILER "/usr/bin/aarch64-linux-gnu-gcc")
 set(CMAKE_CXX_COMPILER "/usr/bin/aarch64-linux-gnu-g++")
 
+set(CMAKE_FIND_ROOT_PATH "/storage/projects/vulkan_development/cross/aarch64")
+
 # Where to look for the target environment. (More paths can be added here)
 set(CMAKE_FIND_ROOT_PATH /usr/aarch64-linux-gnu)
 set(CMAKE_INCLUDE_PATH  /usr/aarch64-linux-gnu/include)
