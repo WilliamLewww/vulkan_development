@@ -16,6 +16,8 @@ set(CMAKE_INCLUDE_PATH  /usr/aarch64-linux-gnu/include)
 set(CMAKE_LIBRARY_PATH  /usr/aarch64-linux-gnu/lib)
 set(CMAKE_PROGRAM_PATH  /usr/aarch64-linux-gnu/bin)
 
+set(CMAKE_FIND_ROOT_PATH "/storage/projects/vulkan_development/_out/aarch64-linux-gnu")
+
 # Adjust the default behavior of the FIND_XXX() commands:
 # search programs in the host environment only.
 set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
