@@ -25,6 +25,9 @@ do
         exit
       fi
     ;;
+    -ns|--no-shaders)
+      CMAKE_FLAGS="-DNO_SHADERS=1"
+    ;;
     *)
     ;;
   esac

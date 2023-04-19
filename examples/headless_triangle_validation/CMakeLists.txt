@@ -25,9 +25,11 @@ foreach(SHADER ${SHADERS})
         list(APPEND SHADERS_LIST
             shaders/headless_triangle_validation/${SHADER_NAME}.spv)
 endforeach()
-add_custom_target(shaders DEPENDS ${SHADERS_LIST})
 
-add_dependencies(headless_triangle_validation shaders)
+if(NOT DEFINED NO_SHADERS)
+  add_custom_target(shaders DEPENDS ${SHADERS_LIST})
+  add_dependencies(headless_triangle_validation shaders)
+  install(DIRECTORY ${CMAKE_BINARY_DIR}/shaders DESTINATION bin)
+endif()
 
 install(TARGETS headless_triangle_validation DESTINATION bin)
-install(DIRECTORY ${CMAKE_BINARY_DIR}/shaders DESTINATION bin)
