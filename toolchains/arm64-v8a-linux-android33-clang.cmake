@@ -7,7 +7,8 @@ set(CMAKE_SYSTEM_VERSION 33)
 set(CMAKE_ANDROID_ARCH_ABI arm64-v8a)
 set(CMAKE_ANDROID_NDK "/opt/android-ndk-r25c")
 
-set(CMAKE_FIND_ROOT_PATH "/storage/projects/vulkan_development/_out/arm64-v8a-linux-android33-clang")
+get_filename_component(CURRENT_PARENT_PATH ${CMAKE_CURRENT_LIST_DIR} DIRECTORY)
+set(CMAKE_FIND_ROOT_PATH "${CURRENT_PARENT_PATH}/_out/arm64-v8a-linux-android33-clang")
 
 # Adjust the default behavior of the FIND_XXX() commands:
 # search programs in the host environment only.
