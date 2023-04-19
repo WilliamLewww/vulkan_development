@@ -1,0 +1,3 @@
+/storage/projects/vulkan_development/tools/headless_triangle/build/CMakeFiles/application.dir
+/storage/projects/vulkan_development/tools/headless_triangle/build/CMakeFiles/edit_cache.dir
+/storage/projects/vulkan_development/tools/headless_triangle/build/CMakeFiles/rebuild_cache.dir
