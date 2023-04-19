@@ -1,1 +1,0 @@
-/usr/bin/c++ CMakeFiles/application.dir/main.cpp.o -o application   -L/storage/projects/vulkan_development/_out/x86_64-linux-gnu/install/lib  -Wl,-rpath,/storage/projects/vulkan_development/_out/x86_64-linux-gnu/install/lib -lvulkan 
