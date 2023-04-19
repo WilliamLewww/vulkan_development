@@ -521,8 +521,9 @@ int main() {
   // =========================================================================
   // Vertex Shader Module
 
-  std::ifstream vertexFile("shaders/shader.vert.spv",
-                           std::ios::binary | std::ios::ate);
+  std::ifstream vertexFile(
+      "shaders/headless_triangle_validation/shader.vert.spv",
+      std::ios::binary | std::ios::ate);
   std::streamsize vertexFileSize = vertexFile.tellg();
   vertexFile.seekg(0, std::ios::beg);
   std::vector<uint32_t> vertexShaderSource(vertexFileSize / sizeof(uint32_t));
@@ -550,8 +551,9 @@ int main() {
   // =========================================================================
   // Fragment Shader Module
 
-  std::ifstream fragmentFile("shaders/shader.frag.spv",
-                             std::ios::binary | std::ios::ate);
+  std::ifstream fragmentFile(
+      "shaders/headless_triangle_validation/shader.frag.spv",
+      std::ios::binary | std::ios::ate);
   std::streamsize fragmentFileSize = fragmentFile.tellg();
   fragmentFile.seekg(0, std::ios::beg);
   std::vector<uint32_t> fragmentShaderSource(fragmentFileSize /
