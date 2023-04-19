@@ -19,6 +19,12 @@ do
     -tc=*|--toolchain=*)
       TOOLCHAIN="${i#*=}"
       TOOLCHAIN_FILE_PATH="$(dirname ${SCRIPT_PATH})/toolchains/${TOOLCHAIN}.cmake"
+
+      if [ ! -f "${TOOLCHAIN_FILE_PATH}" ]
+      then
+        echo "Unsupported Toolchain"
+        exit
+      fi
     ;;
     -m|--minimal-build)
       CMAKE_FLAGS="-DBUILD_WSI_XCB_SUPPORT=0 \
@@ -45,15 +51,17 @@ then
   exit
 fi
 
+echo "========================================================================="
 echo "SDK Version: ${SDK_VERSION}"
 echo "Threads: ${THREADS}"
 echo "Toolchain: ${TOOLCHAIN}"
 echo ""
 echo "Flags:"
-if [ "${MINIMAL_BUILD}" == 1 ]
+if [ "${CMAKE_FLAGS}" != "" ]
 then
   echo "  Minimal Build"
 fi
+echo "========================================================================="
 
 mkdir -p ${OUT_PATH}
 mkdir -p ${OUT_PATH}/src
