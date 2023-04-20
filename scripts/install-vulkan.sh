@@ -6,6 +6,10 @@ SCRIPT_PATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
 SDK_VERSION='sdk-1.3.243.0'
 THREADS="$( nproc )"
 TOOLCHAIN="x86_64-linux-gnu"
+if [[ ! -z "${VULKAN_TOOLCHAIN}" ]]
+then
+  TOOLCHAIN=${VULKAN_TOOLCHAIN}
+fi
 
 for i in "$@"
 do
