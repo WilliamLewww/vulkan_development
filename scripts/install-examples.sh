@@ -13,21 +13,14 @@ fi
 for i in "$@"
 do
   case $i in
-    -v=*|--version=*)
-      SDK_VERSION="${i#*=}"
+    -e=*|--example=*)
+      EXAMPLE="${i#*=}"
     ;;
     -t=*|--threads=*)
       THREADS="${i#*=}"
     ;;
     -tc=*|--toolchain=*)
       TOOLCHAIN="${i#*=}"
-      TOOLCHAIN_FILE_PATH="$(dirname ${SCRIPT_PATH})/toolchains/${TOOLCHAIN}.cmake"
-
-      if [ ! -f "${TOOLCHAIN_FILE_PATH}" ]
-      then
-        echo "Unsupported Toolchain"
-        exit
-      fi
     ;;
     -gve=*|--glslang-validator-executable=*)
       CMAKE_FLAGS="$CMAKE_FLAGS -DGLSLANG_VALIDATOR_EXECUTABLE=${i#*=}"
@@ -42,6 +35,13 @@ do
     ;;
   esac
 done
+
+TOOLCHAIN_FILE_PATH="$(dirname ${SCRIPT_PATH})/toolchains/${TOOLCHAIN}.cmake"
+if [ ! -f "${TOOLCHAIN_FILE_PATH}" ]
+then
+  echo "Unsupported Toolchain"
+  exit
+fi
 
 OUT_PATH="$(dirname $SCRIPT_PATH)/_out/${TOOLCHAIN}"
 EXAMPLES_PATH="$(dirname $SCRIPT_PATH)/examples"
@@ -74,16 +74,16 @@ echo "========================================================================="
 mkdir -p ${OUT_PATH}/build
 mkdir -p ${OUT_PATH}/install
 
-cmake -H${EXAMPLES_PATH}/headless_triangle_minimal -B${OUT_PATH}/build/headless_triangle_minimal \
-    -DCMAKE_PREFIX_PATH=${OUT_PATH}/install \
-    -DCMAKE_INSTALL_PREFIX=${OUT_PATH}/install \
-    -DCMAKE_TOOLCHAIN_FILE=${TOOLCHAIN_FILE_PATH} \
-    ${CMAKE_FLAGS}
-make install -j${THREADS} -C ${OUT_PATH}/build/headless_triangle_minimal
-
-cmake -H${EXAMPLES_PATH}/headless_triangle_validation -B${OUT_PATH}/build/headless_triangle_validation \
-    -DCMAKE_PREFIX_PATH=${OUT_PATH}/install \
-    -DCMAKE_INSTALL_PREFIX=${OUT_PATH}/install \
-    -DCMAKE_TOOLCHAIN_FILE=${TOOLCHAIN_FILE_PATH} \
-    ${CMAKE_FLAGS}
-make install -j${THREADS} -C ${OUT_PATH}/build/headless_triangle_validation
+if [ "${EXAMPLE}" != "" ]
+then
+  cmake -H${EXAMPLES_PATH}/${EXAMPLE} -B${OUT_PATH}/build/${EXAMPLE} \
+      -DCMAKE_PREFIX_PATH=${OUT_PATH}/install \
+      -DCMAKE_INSTALL_PREFIX=${OUT_PATH}/install \
+      -DCMAKE_TOOLCHAIN_FILE=${TOOLCHAIN_FILE_PATH} \
+      ${CMAKE_FLAGS}
+  make install -j${THREADS} -C ${OUT_PATH}/build/${EXAMPLE}
+else
+  echo "Examples"
+  echo "  headless_triangle_minimal"
+  echo "  headless_triangle_validation"
+fi

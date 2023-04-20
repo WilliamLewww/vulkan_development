@@ -22,13 +22,6 @@ do
     ;;
     -tc=*|--toolchain=*)
       TOOLCHAIN="${i#*=}"
-      TOOLCHAIN_FILE_PATH="$(dirname ${SCRIPT_PATH})/toolchains/${TOOLCHAIN}.cmake"
-
-      if [ ! -f "${TOOLCHAIN_FILE_PATH}" ]
-      then
-        echo "Unsupported Toolchain"
-        exit
-      fi
     ;;
     -m|--minimal-build)
       CMAKE_FLAGS="-DBUILD_WSI_XCB_SUPPORT=0 \
@@ -44,6 +37,13 @@ do
     ;;
   esac
 done
+
+TOOLCHAIN_FILE_PATH="$(dirname ${SCRIPT_PATH})/toolchains/${TOOLCHAIN}.cmake"
+if [ ! -f "${TOOLCHAIN_FILE_PATH}" ]
+then
+  echo "Unsupported Toolchain"
+  exit
+fi
 
 OUT_PATH="$(dirname $SCRIPT_PATH)/_out/${TOOLCHAIN}"
 

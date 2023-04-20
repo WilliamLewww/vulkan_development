@@ -23,6 +23,12 @@ set(CMAKE_FIND_ROOT_PATH "${CURRENT_PARENT_PATH}/_out/aarch64-linux-gnu")
 # search programs in the host environment only.
 set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
 
-# Search headers and libraries in the target environment only.
-set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
-set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
+if(${CMAKE_HOST_SYSTEM_PROCESSOR} STREQUAL "aarch64")
+  # Search headers and libraries in the target environment only.
+  set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY BOTH)
+  set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE BOTH)
+else()
+  # Search headers and libraries in the target environment only.
+  set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
+  set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
+endif()
