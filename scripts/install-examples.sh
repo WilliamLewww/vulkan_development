@@ -48,19 +48,13 @@ EXAMPLES_PATH="$(dirname $SCRIPT_PATH)/examples"
 
 if [ "${DELETE}" == 1 ]
 then
-  if [ ! -f "${OUT_PATH}/build/headless_triangle_minimal/install_manifest.txt" ]
+  if [ ! -f "${OUT_PATH}/build/${EXAMPLE}/install_manifest.txt" ]
   then
-    xargs rm < ${OUT_PATH}/build/headless_triangle_minimal/install_manifest.txt
+    xargs rm < ${OUT_PATH}/build/${EXAMPLE}/install_manifest.txt
   fi
-  rm -r -f ${OUT_PATH}/build/headless_triangle_minimal
+  rm -r -f ${OUT_PATH}/build/${EXAMPLE}
 
-  if [ ! -f "${OUT_PATH}/build/headless_triangle_validation/install_manifest.txt" ]
-  then
-    xargs rm < ${OUT_PATH}/build/headless_triangle_validation/install_manifest.txt
-  fi
-  rm -r -f ${OUT_PATH}/build/headless_triangle_validation
-
-  echo "Examples have been deleted!"
+  echo "Example has been deleted!"
   exit
 fi
 
@@ -84,6 +78,7 @@ then
   make install -j${THREADS} -C ${OUT_PATH}/build/${EXAMPLE}
 else
   echo "Examples"
+  echo "  triangle_minimal"
   echo "  headless_triangle_minimal"
   echo "  headless_triangle_validation"
 fi
