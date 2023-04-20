@@ -45,6 +45,31 @@ void throwExceptionVulkanAPI(VkResult result, const std::string& functionName) {
   throw std::runtime_error(message);
 }
 
+std::ifstream getShaderFile(std::string shaderFileName) {
+  // relative to binary
+  std::ifstream shaderFile("shaders/headless_triangle_validation/" +
+                           shaderFileName, std::ios::binary | std::ios::ate);
+
+  // install local directory
+  if (!shaderFile) {
+    std::string shaderPath = std::string(SHARE_PATH) +
+        std::string("/shaders/headless_triangle_validation/") + shaderFileName;
+
+    shaderFile.open(shaderPath.c_str(), std::ios::binary | std::ios::ate);
+  }
+
+  // install global directory
+  if (!shaderFile) {
+    std::string shaderPath = 
+        std::string("/usr/local/share/shaders/headless_triangle_validation/") +
+        shaderFileName;
+
+    shaderFile.open(shaderPath.c_str(), std::ios::binary | std::ios::ate);
+  }
+
+  return shaderFile;
+}
+
 int main() {
   VkResult result;
 
@@ -521,9 +546,7 @@ int main() {
   // =========================================================================
   // Vertex Shader Module
 
-  std::ifstream vertexFile(
-      "shaders/headless_triangle_validation/shader.vert.spv",
-      std::ios::binary | std::ios::ate);
+  std::ifstream vertexFile = getShaderFile("shader.vert.spv");
   std::streamsize vertexFileSize = vertexFile.tellg();
   vertexFile.seekg(0, std::ios::beg);
   std::vector<uint32_t> vertexShaderSource(vertexFileSize / sizeof(uint32_t));
@@ -551,9 +574,7 @@ int main() {
   // =========================================================================
   // Fragment Shader Module
 
-  std::ifstream fragmentFile(
-      "shaders/headless_triangle_validation/shader.frag.spv",
-      std::ios::binary | std::ios::ate);
+  std::ifstream fragmentFile = getShaderFile("shader.frag.spv");
   std::streamsize fragmentFileSize = fragmentFile.tellg();
   fragmentFile.seekg(0, std::ios::beg);
   std::vector<uint32_t> fragmentShaderSource(fragmentFileSize /
