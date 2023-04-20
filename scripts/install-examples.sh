@@ -25,8 +25,14 @@ do
         exit
       fi
     ;;
+    -gve=*|--glslang-validator-executable=*)
+      CMAKE_FLAGS="$CMAKE_FLAGS -DGLSLANG_VALIDATOR_EXECUTABLE=${i#*=}"
+    ;;
     -ns|--no-shaders)
       CMAKE_FLAGS="-DNO_SHADERS=1"
+    ;;
+    -d|--delete)
+      DELETE=1
     ;;
     *)
     ;;
@@ -35,6 +41,18 @@ done
 
 OUT_PATH="$(dirname $SCRIPT_PATH)/_out/${TOOLCHAIN}"
 EXAMPLES_PATH="$(dirname $SCRIPT_PATH)/examples"
+
+if [ "${DELETE}" == 1 ]
+then
+  xargs rm < ${OUT_PATH}/build/headless_triangle_minimal/install_manifest.txt
+  rm -r -f ${OUT_PATH}/build/headless_triangle_minimal
+
+  xargs rm < ${OUT_PATH}/build/headless_triangle_validation/install_manifest.txt
+  rm -r -f ${OUT_PATH}/build/headless_triangle_validation
+
+  echo "Examples have been deleted!"
+  exit
+fi
 
 echo "========================================================================="
 echo "Threads: ${THREADS}"

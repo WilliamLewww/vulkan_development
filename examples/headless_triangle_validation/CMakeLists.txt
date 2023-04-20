@@ -11,6 +11,10 @@ add_executable(headless_triangle_validation main.cpp)
 include_directories(headless_triangle_validation ${Vulkan_INCLUDE_DIRS})
 target_link_libraries(headless_triangle_validation ${Vulkan_LIBRARIES})
 
+if(DEFINED GLSLANG_VALIDATOR_EXECUTABLE)
+  set(Vulkan_GLSLANG_VALIDATOR_EXECUTABLE ${GLSLANG_VALIDATOR_EXECUTABLE})
+endif()
+
 file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/shaders/headless_triangle_validation)
 foreach(SHADER ${SHADERS})
         get_filename_component(SHADER_NAME ${SHADER} NAME)

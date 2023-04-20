@@ -11,6 +11,10 @@ add_executable(headless_triangle_minimal main.cpp)
 include_directories(headless_triangle_minimal ${Vulkan_INCLUDE_DIRS})
 target_link_libraries(headless_triangle_minimal ${Vulkan_LIBRARIES})
 
+if(DEFINED GLSLANG_VALIDATOR_EXECUTABLE)
+  set(Vulkan_GLSLANG_VALIDATOR_EXECUTABLE ${GLSLANG_VALIDATOR_EXECUTABLE})
+endif()
+
 file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/shaders/headless_triangle_minimal)
 foreach(SHADER ${SHADERS})
         get_filename_component(SHADER_NAME ${SHADER} NAME)
