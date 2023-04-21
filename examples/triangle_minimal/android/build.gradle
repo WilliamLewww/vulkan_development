@@ -41,6 +41,15 @@ apply plugin: 'kotlin-android'
 android {
     compileSdk 33
     ndkVersion '25.1.8937393'
+
+    signingConfigs {
+        release {
+            storeFile file("release.keystore")
+            storePassword "password"
+            keyAlias "alias_name"
+            keyPassword "password"
+        }
+    }
     
     defaultConfig {
         shaders {
@@ -61,6 +70,7 @@ android {
         release {
             minifyEnabled = true
             proguardFiles getDefaultProguardFile('proguard-android.txt')
+            signingConfig signingConfigs.release
         }
     }
     externalNativeBuild {
