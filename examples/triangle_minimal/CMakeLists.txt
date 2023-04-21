@@ -9,7 +9,18 @@ file(GLOB SHADERS
 
 add_compile_definitions(SHARE_PATH="${CMAKE_INSTALL_PREFIX}/share")
 
-add_executable(triangle_minimal main.cpp)
+if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
+  add_executable(triangle_minimal main.cpp)
+  add_compile_definitions(PLATFORM_LINUX=1)
+
+  find_package(X11)
+  target_link_libraries(triangle_minimal X11)
+elseif(${CMAKE_SYSTEM_NAME} STREQUAL "Android")
+  add_library(triangle_minimal main.cpp)
+  add_compile_definitions(PLATFORM_ANDROID=1)
+  include_directories(${CMAKE_ANDROID_NDK}/sources/android/native_app_glue)
+endif()
+
 include_directories(triangle_minimal ${Vulkan_INCLUDE_DIRS})
 target_link_libraries(triangle_minimal ${Vulkan_LIBRARIES})
 
@@ -39,3 +50,11 @@ if(NOT DEFINED NO_SHADERS)
 endif()
 
 install(TARGETS triangle_minimal DESTINATION bin)
+
+# android_create_apk(
+#     androidcmakeexample
+#     "org.triangle_minimal" 
+#     "${CMAKE_BINARY_DIR}/apk"
+#     "${CMAKE_SOURCE_DIR}/libs"
+#     "${CMAKE_SOURCE_DIR}/android"
+#     "${CMAKE_SOURCE_DIR}/assets")

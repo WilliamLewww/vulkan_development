@@ -5,6 +5,13 @@
 #include <vector>
 #include <cstring>
 
+#if defined(PLATFORM_LINUX)
+#include <X11/Xlib.h>
+#elif defined(PLATFORM_ANDROID)
+#include <android/native_window.h>
+#include <android_native_app_glue.h>
+#endif
+
 void throwExceptionVulkanAPI(VkResult result, const std::string& functionName) {
   std::string message = "Vulkan API exception: return code " +
                         std::to_string(result) + " (" + functionName + ")";
@@ -15,13 +22,13 @@ void throwExceptionVulkanAPI(VkResult result, const std::string& functionName) {
 
 std::ifstream getShaderFile(std::string shaderFileName) {
   // relative to binary
-  std::ifstream shaderFile("shaders/headless_triangle_minimal/" +
+  std::ifstream shaderFile("shaders/triangle_minimal/" +
                            shaderFileName, std::ios::binary | std::ios::ate);
 
   // install local directory
   if (!shaderFile) {
     std::string shaderPath = std::string(SHARE_PATH) +
-        std::string("/shaders/headless_triangle_minimal/") + shaderFileName;
+        std::string("/shaders/triangle_minimal/") + shaderFileName;
 
     shaderFile.open(shaderPath.c_str(), std::ios::binary | std::ios::ate);
   }
@@ -29,7 +36,7 @@ std::ifstream getShaderFile(std::string shaderFileName) {
   // install global directory
   if (!shaderFile) {
     std::string shaderPath = 
-        std::string("/usr/local/share/shaders/headless_triangle_minimal/") +
+        std::string("/usr/local/share/shaders/triangle_minimal/") +
         shaderFileName;
 
     shaderFile.open(shaderPath.c_str(), std::ios::binary | std::ios::ate);
@@ -38,8 +45,29 @@ std::ifstream getShaderFile(std::string shaderFileName) {
   return shaderFile;
 }
 
+#if defined(PLATFORM_ANDROID)
+void android_main(struct android_app *app) {
+#else
 int main() {
+#endif
   VkResult result;
+
+  // =========================================================================
+  // Window
+
+#if defined(PLATFORM_LINUX)
+  Display *displayPtr = XOpenDisplay(NULL);
+  int screen = DefaultScreen(displayPtr);
+
+  Window window = XCreateSimpleWindow(
+      displayPtr, RootWindow(displayPtr, screen), 10, 10, 100, 100, 1,
+      BlackPixel(displayPtr, screen), WhitePixel(displayPtr, screen));
+
+  XSelectInput(displayPtr, window, ExposureMask | KeyPressMask);
+  XMapWindow(displayPtr, window);
+#elif defined(PLATFORM_ANDROID)
+  ANativeWindow* window;
+#endif
 
   // =========================================================================
   // Vulkan Instance
@@ -55,7 +83,13 @@ int main() {
 
   std::vector<const char *> instanceLayerList = {};
 
-  std::vector<const char *> instanceExtensionList = {};
+  std::vector<const char *> instanceExtensionList = {
+#if defined(PLATFORM_LINUX)
+      "VK_KHR_xlib_surface"
+#elif defined(PLATFORM_ANDROID)
+      "VK_KHR_android_surface",
+#endif
+      "VK_KHR_surface"};
 
   VkInstanceCreateInfo instanceCreateInfo = {
       .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
@@ -1136,7 +1170,13 @@ int main() {
   // Main Loop
 
   uint32_t currentFrame = 0, previousFrame = 0;
+
   while (true) {
+#if defined(PLATFORM_LINUX)
+    XEvent event;
+    XNextEvent(displayPtr, &event);
+#endif
+
     result = vkWaitForFences(deviceHandle, 1,
                              &imageAvailableFenceHandleList[currentFrame], true,
                              UINT32_MAX);
@@ -1222,5 +1262,11 @@ int main() {
   vkDestroyDevice(deviceHandle, NULL);
   vkDestroyInstance(instanceHandle, NULL);
 
+#if defined(PLATFORM_LINUX)
+  XCloseDisplay(displayPtr);
+#endif
+
+#if !defined(PLATFORM_ANDROID)
   return 0;
+#endif
 }
