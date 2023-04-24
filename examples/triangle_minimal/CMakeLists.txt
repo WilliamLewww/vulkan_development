@@ -22,6 +22,13 @@ elseif(${CMAKE_SYSTEM_NAME} STREQUAL "Android")
   add_compile_definitions(PLATFORM_ANDROID=1)
   add_compile_definitions(ANDROID_STL=c++_shared)
 
+  include_directories(${CMAKE_ANDROID_NDK}/sources/android/native_app_glue)
+  add_library(native_app_glue STATIC
+      ${CMAKE_ANDROID_NDK}/sources/android/native_app_glue/android_native_app_glue.c)
+  set(CMAKE_SHARED_LINKER_FLAGS
+      "${CMAKE_SHARED_LINKER_FLAGS} -u ANativeActivity_onCreate")
+
+  target_link_libraries(triangle_minimal native_app_glue)
 endif()
 
 include_directories(triangle_minimal ${Vulkan_INCLUDE_DIRS})
