@@ -16,9 +16,12 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
   find_package(X11)
   target_link_libraries(triangle_minimal X11)
 elseif(${CMAKE_SYSTEM_NAME} STREQUAL "Android")
-  add_library(triangle_minimal main.cpp)
+  add_library(triangle_minimal SHARED main.cpp)
+  target_link_libraries(triangle_minimal log)
+  target_link_libraries(triangle_minimal android)
   add_compile_definitions(PLATFORM_ANDROID=1)
-  include_directories(${CMAKE_ANDROID_NDK}/sources/android/native_app_glue)
+  add_compile_definitions(ANDROID_STL=c++_shared)
+
 endif()
 
 include_directories(triangle_minimal ${Vulkan_INCLUDE_DIRS})
@@ -43,18 +46,29 @@ foreach(SHADER ${SHADERS})
             shaders/triangle_minimal/${SHADER_NAME}.spv)
 endforeach()
 
-if(NOT DEFINED NO_SHADERS)
-  add_custom_target(shaders DEPENDS ${SHADERS_LIST})
-  add_dependencies(triangle_minimal shaders)
-  install(DIRECTORY ${CMAKE_BINARY_DIR}/shaders DESTINATION share)
-endif()
+add_custom_target(shaders DEPENDS ${SHADERS_LIST})
+add_dependencies(triangle_minimal shaders)
 
+install(DIRECTORY ${CMAKE_BINARY_DIR}/shaders DESTINATION share)
 install(TARGETS triangle_minimal DESTINATION bin)
 
-# android_create_apk(
-#     androidcmakeexample
-#     "org.triangle_minimal" 
-#     "${CMAKE_BINARY_DIR}/apk"
-#     "${CMAKE_SOURCE_DIR}/libs"
-#     "${CMAKE_SOURCE_DIR}/android"
-#     "${CMAKE_SOURCE_DIR}/assets")
+if(${CMAKE_SYSTEM_NAME} STREQUAL "Android")
+  add_custom_command(TARGET triangle_minimal POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy_directory
+      "${CMAKE_SOURCE_DIR}/android" "${CMAKE_BINARY_DIR}/android")
+
+  configure_file("${CMAKE_SOURCE_DIR}/shader.vert"
+                 "${CMAKE_BINARY_DIR}/android/src/main/shaders/shader.vert")
+
+  configure_file("${CMAKE_SOURCE_DIR}/shader.frag"
+                 "${CMAKE_BINARY_DIR}/android/src/main/shaders/shader.frag")
+
+  add_custom_command(TARGET triangle_minimal POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy
+      "${CMAKE_BINARY_DIR}/libtriangle_minimal.so"
+      "${CMAKE_BINARY_DIR}/android/src/main/jniLibs/${CMAKE_ANDROID_ARCH_ABI}/libmain.so")
+
+  add_custom_command(TARGET triangle_minimal
+                     COMMAND gradle build 
+                     WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/android")
+endif()
