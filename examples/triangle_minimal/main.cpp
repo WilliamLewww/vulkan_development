@@ -8,10 +8,20 @@
 #if defined(PLATFORM_LINUX)
 #include <X11/Xlib.h>
 #elif defined(PLATFORM_ANDROID)
+#include <android/asset_manager.h>
 #include <android/log.h>
 #include <android/native_window.h>
 #include <android_native_app_glue.h>
 #endif
+
+void printSection(std::string sectionName) {
+#if defined(PLATFORM_ANDROID)
+  __android_log_print(ANDROID_LOG_INFO, "[vulkan_development]", "%s",
+      sectionName.c_str());
+#else
+  printf("[vulkan_development]: %s", sectionName.c_str());
+#endif
+}
 
 void throwExceptionVulkanAPI(VkResult result, const std::string& functionName) {
   std::string message = "Vulkan API exception: return code " +
@@ -25,8 +35,21 @@ void throwExceptionVulkanAPI(VkResult result, const std::string& functionName) {
 #endif
 }
 
+std::vector<uint32_t> loadShaderFile(
+#if defined(PLATFORM_ANDROID)
+    struct android_app *app,
+#endif
+    std::string shaderFileName) {
+#if defined(PLATFORM_ANDROID)
+  std::string filePath = "shaders/" + shaderFileName;
+  AAsset* asset = AAssetManager_open(app->activity->assetManager,
+      filePath.c_str(), AASSET_MODE_STREAMING);
 
-std::ifstream getShaderFile(std::string shaderFileName) {
+  std::streamsize shaderFileSize = AAsset_getLength(asset);
+  std::vector<uint32_t> shaderSource(shaderFileSize / sizeof(uint32_t));
+  AAsset_read(asset, static_cast<void*>(shaderSource.data()), shaderFileSize);
+  AAsset_close(asset);
+#else
   // relative to binary
   std::ifstream shaderFile("shaders/triangle_minimal/" +
                            shaderFileName, std::ios::binary | std::ios::ate);
@@ -48,7 +71,16 @@ std::ifstream getShaderFile(std::string shaderFileName) {
     shaderFile.open(shaderPath.c_str(), std::ios::binary | std::ios::ate);
   }
 
-  return shaderFile;
+  std::streamsize shaderFileSize = shaderFile.tellg();
+  shaderFile.seekg(0, std::ios::beg);
+  std::vector<uint32_t> shaderSource(shaderFileSize / sizeof(uint32_t));
+
+  shaderFile.read(reinterpret_cast<char *>(shaderSource.data()),
+                  shaderFileSize);
+
+  shaderFile.close();
+#endif
+  return shaderSource;
 }
 
 #if defined(PLATFORM_ANDROID)
@@ -60,6 +92,7 @@ int main() {
 
   // =========================================================================
   // Window
+  printSection("Window");
 
 #if defined(PLATFORM_LINUX)
   Display *displayPtr = XOpenDisplay(NULL);
@@ -77,6 +110,7 @@ int main() {
 
   // =========================================================================
   // Vulkan Instance
+  printSection("Vulkan Instance");
 
   VkApplicationInfo applicationInfo = {
       .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
@@ -117,6 +151,7 @@ int main() {
 
   // =========================================================================
   // Physical Device
+  printSection("Physical Device");
 
   uint32_t physicalDeviceCount = 0;
   result =
@@ -148,11 +183,13 @@ int main() {
 
   // =========================================================================
   // Physical Device Features
+  printSection("Physical Device Features");
 
   VkPhysicalDeviceFeatures deviceFeatures = {};
 
   // =========================================================================
   // Physical Device Submission Queue Families
+  printSection("Physical Device Submission Queue Families");
 
   uint32_t queueFamilyPropertyCount = 0;
   vkGetPhysicalDeviceQueueFamilyProperties(activePhysicalDeviceHandle,
@@ -184,6 +221,7 @@ int main() {
 
   // =========================================================================
   // Logical Device
+  printSection("Logical Device");
 
   std::vector<const char *> deviceExtensionList = {};
 
@@ -209,12 +247,14 @@ int main() {
 
   // =========================================================================
   // Submission Queue
+  printSection("Submission Queue");
 
   VkQueue queueHandle = VK_NULL_HANDLE;
   vkGetDeviceQueue(deviceHandle, queueFamilyIndex, 0, &queueHandle);
 
   // =========================================================================
   // Command Pool
+  printSection("Command Pool");
 
   VkCommandPoolCreateInfo commandPoolCreateInfo = {
       .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
@@ -232,6 +272,7 @@ int main() {
 
   // =========================================================================
   // Command Buffers
+  printSection("Command Buffers");
 
   VkCommandBufferAllocateInfo commandBufferAllocateInfo = {
       .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
@@ -252,6 +293,7 @@ int main() {
 
   // =========================================================================
   // Render Pass
+  printSection("Render Pass");
 
   std::vector<VkAttachmentDescription> attachmentDescriptionList = {
       {.flags = 0,
@@ -300,6 +342,7 @@ int main() {
 
   // =========================================================================
   // Render Pass Images, Render Pass Image Views
+  printSection("Render Pass Images, Render Pass Image Views");
 
   std::vector<VkImage> renderPassImageHandleList(3, VK_NULL_HANDLE);
   std::vector<VkImageView> renderPassImageViewHandleList(3, VK_NULL_HANDLE);
@@ -395,6 +438,7 @@ int main() {
 
   // =========================================================================
   // Framebuffers
+  printSection("Framebuffers");
 
   std::vector<VkFramebuffer> framebufferHandleList(3, VK_NULL_HANDLE);
 
@@ -423,6 +467,7 @@ int main() {
 
   // =========================================================================
   // Descriptor Pool
+  printSection("Descriptor Pool");
 
   std::vector<VkDescriptorPoolSize> descriptorPoolSizeList = {
       {.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, .descriptorCount = 1},
@@ -446,6 +491,7 @@ int main() {
 
   // =========================================================================
   // Descriptor Set Layout
+  printSection("Descriptor Set Layout");
 
   std::vector<VkDescriptorSetLayoutBinding> descriptorSetLayoutBindingList = {
       {.binding = 0,
@@ -472,6 +518,7 @@ int main() {
 
   // =========================================================================
   // Allocate Descriptor Sets
+  printSection("Allocate Descriptor Sets");
 
   std::vector<VkDescriptorSetLayout> descriptorSetLayoutHandleList = {
       descriptorSetLayoutHandle};
@@ -496,6 +543,7 @@ int main() {
 
   // =========================================================================
   // Pipeline Layout
+  printSection("Pipeline Layout");
 
   VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = {
       .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
@@ -516,16 +564,13 @@ int main() {
 
   // =========================================================================
   // Vertex Shader Module
+  printSection("Vertex Shader Module");
 
-  std::ifstream vertexFile = getShaderFile("shader.vert.spv");
-  std::streamsize vertexFileSize = vertexFile.tellg();
-  vertexFile.seekg(0, std::ios::beg);
-  std::vector<uint32_t> vertexShaderSource(vertexFileSize / sizeof(uint32_t));
-
-  vertexFile.read(reinterpret_cast<char *>(vertexShaderSource.data()),
-                  vertexFileSize);
-
-  vertexFile.close();
+  std::vector<uint32_t> vertexShaderSource = loadShaderFile(
+#if defined(PLATFORM_ANDROID)
+      app,
+#endif
+      "shader.vert.spv");
 
   VkShaderModuleCreateInfo vertexShaderModuleCreateInfo = {
       .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
@@ -544,17 +589,13 @@ int main() {
 
   // =========================================================================
   // Fragment Shader Module
+  printSection("Fragment Shader Module");
 
-  std::ifstream fragmentFile = getShaderFile("shader.frag.spv");
-  std::streamsize fragmentFileSize = fragmentFile.tellg();
-  fragmentFile.seekg(0, std::ios::beg);
-  std::vector<uint32_t> fragmentShaderSource(fragmentFileSize /
-                                             sizeof(uint32_t));
-
-  fragmentFile.read(reinterpret_cast<char *>(fragmentShaderSource.data()),
-                    fragmentFileSize);
-
-  fragmentFile.close();
+  std::vector<uint32_t> fragmentShaderSource = loadShaderFile(
+#if defined(PLATFORM_ANDROID)
+      app,
+#endif
+      "shader.frag.spv");
 
   VkShaderModuleCreateInfo fragmentShaderModuleCreateInfo = {
       .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
@@ -573,6 +614,7 @@ int main() {
 
   // =========================================================================
   // Graphics Pipeline
+  printSection("Graphics Pipeline");
 
   std::vector<VkPipelineShaderStageCreateInfo>
       pipelineShaderStageCreateInfoList = {
@@ -731,6 +773,7 @@ int main() {
 
   // =========================================================================
   // Vertex Buffer
+  printSection("Vertex Buffer");
 
   float vertexBuffer[12] = {
     -0.5, -0.5, 0.0,
@@ -808,6 +851,7 @@ int main() {
 
   // =========================================================================
   // Index Buffer
+  printSection("Index Buffer");
 
   uint32_t indexBuffer[6] = {
     0, 1, 2,
@@ -883,6 +927,7 @@ int main() {
 
   // =========================================================================
   // Uniform Buffer
+  printSection("Uniform Buffer");
 
   struct UniformStructure {
     float cameraPosition[4] = {0, 0, 0, 1};
@@ -961,6 +1006,7 @@ int main() {
 
   // =========================================================================
   // Result Buffer
+  printSection("Result Buffer");
 
   VkMemoryRequirements renderPassImageMemoryRequirements;
   vkGetImageMemoryRequirements(deviceHandle, renderPassImageHandleList[0],
@@ -1023,6 +1069,7 @@ int main() {
 
   // =========================================================================
   // Update Descriptor Set
+  printSection("Update Descriptor Set");
 
   VkDescriptorBufferInfo uniformDescriptorInfo = {
       .buffer = uniformBufferHandle, .offset = 0, .range = VK_WHOLE_SIZE};
@@ -1044,6 +1091,7 @@ int main() {
 
   // =========================================================================
   // Record Render Pass Command Buffers
+  printSection("Record Render Pass Command Buffers");
 
   for (uint32_t x = 0; x < renderPassImageHandleList.size(); x++) {
     VkCommandBufferBeginInfo renderCommandBufferBeginInfo = {
@@ -1103,6 +1151,7 @@ int main() {
 
   // =========================================================================
   // Fences, Semaphores
+  printSection("Fences, Semaphores");
 
   std::vector<VkFence> imageAvailableFenceHandleList(
       renderPassImageHandleList.size(), VK_NULL_HANDLE);
@@ -1174,6 +1223,7 @@ int main() {
 
   // =========================================================================
   // Main Loop
+  printSection("Main Loop");
 
   uint32_t currentFrame = 0, previousFrame = 0;
 
@@ -1225,6 +1275,7 @@ int main() {
 
   // =========================================================================
   // Cleanup
+  printSection("Cleanup");
 
   result = vkDeviceWaitIdle(deviceHandle);
 
