@@ -7,11 +7,13 @@
 
 #if defined(PLATFORM_LINUX)
 #include <X11/Xlib.h>
+#include <vulkan/vulkan_xlib.h>
 #elif defined(PLATFORM_ANDROID)
 #include <android/asset_manager.h>
 #include <android/log.h>
 #include <android/native_window.h>
 #include <android_native_app_glue.h>
+#include <vulkan/vulkan_android.h>
 #endif
 
 void printSection(std::string sectionName) {
@@ -19,7 +21,7 @@ void printSection(std::string sectionName) {
   __android_log_print(ANDROID_LOG_INFO, "[vulkan_development]", "%s",
       sectionName.c_str());
 #else
-  printf("[vulkan_development]: %s", sectionName.c_str());
+  printf("[vulkan_development]: %s\n", sectionName.c_str());
 #endif
 }
 
@@ -105,7 +107,7 @@ int main() {
   XSelectInput(displayPtr, window, ExposureMask | KeyPressMask);
   XMapWindow(displayPtr, window);
 #elif defined(PLATFORM_ANDROID)
-  ANativeWindow* window;
+  ANativeWindow* windowPtr = app->window;
 #endif
 
   // =========================================================================
@@ -125,7 +127,7 @@ int main() {
 
   std::vector<const char *> instanceExtensionList = {
 #if defined(PLATFORM_LINUX)
-      "VK_KHR_xlib_surface"
+      "VK_KHR_xlib_surface",
 #elif defined(PLATFORM_ANDROID)
       "VK_KHR_android_surface",
 #endif
@@ -148,6 +150,35 @@ int main() {
   if (result != VK_SUCCESS) {
     throwExceptionVulkanAPI(result, "vkCreateInstance");
   }
+
+  // =========================================================================
+  // Window Surface
+  printSection("Window Surface");
+
+  VkSurfaceKHR surfaceHandle = VK_NULL_HANDLE;
+
+#if defined(PLATFORM_LINUX)
+  VkXlibSurfaceCreateInfoKHR xlibSurfaceCreateInfo = {
+    .sType = VK_STRUCTURE_TYPE_XLIB_SURFACE_CREATE_INFO_KHR,
+    .pNext = NULL,
+    .flags = 0,
+    .dpy = displayPtr,
+    .window = window
+  };
+
+  result = vkCreateXlibSurfaceKHR(instanceHandle, &xlibSurfaceCreateInfo, NULL,
+                                  &surfaceHandle);
+#elif defined(PLATFORM_ANDROID)
+  VkAndroidSurfaceCreateInfoKHR androidSurfaceCreateInfo = {
+    .sType = VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR,
+    .pNext = NULL,
+    .flags = 0,
+    .window = windowPtr
+  };
+
+  result = vkCreateAndroidSurfaceKHR(instanceHandle, &androidSurfaceCreateInfo,
+                                     NULL, &surfaceHandle);
+#endif
 
   // =========================================================================
   // Physical Device
@@ -292,6 +323,14 @@ int main() {
   }
 
   // =========================================================================
+  // Surface Features
+  printSection("Surface Features");
+
+  // =========================================================================
+  // Swapchain
+  printSection("Swapchain");
+
+  // =========================================================================
   // Render Pass
   printSection("Render Pass");
 
@@ -339,6 +378,14 @@ int main() {
   if (result != VK_SUCCESS) {
     throwExceptionVulkanAPI(result, "vkCreateRenderPass");
   }
+
+  // =========================================================================
+  // Swapchain Images, Swapchain Image Views
+  printSection("Swapchain Images, Swapchain Image Views");
+
+  // =========================================================================
+  // Framebuffers
+  printSection("Framebuffers");
 
   // =========================================================================
   // Render Pass Images, Render Pass Image Views
