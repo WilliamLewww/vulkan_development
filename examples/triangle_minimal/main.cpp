@@ -4,6 +4,8 @@
 #include <iostream>
 #include <vector>
 #include <cstring>
+#include <mutex>
+#include <condition_variable>
 
 #if defined(PLATFORM_LINUX)
 #include <X11/Xlib.h>
@@ -12,6 +14,7 @@
 #include <android/asset_manager.h>
 #include <android/log.h>
 #include <android/native_window.h>
+#include <android/looper.h>
 #include <android_native_app_glue.h>
 #include <vulkan/vulkan_android.h>
 #endif
@@ -86,7 +89,17 @@ std::vector<uint32_t> loadShaderFile(
 }
 
 #if defined(PLATFORM_ANDROID)
-void android_main(struct android_app *app) {
+std::mutex waitForWindowMutex;
+std::condition_variable windowReadyConditionVariable;
+static void handleAppCmd(struct android_app *appPtr, int32_t cmd) {
+  switch (cmd) {
+    case APP_CMD_INIT_WINDOW:
+      windowReadyConditionVariable.notify_one();
+      break;
+  }
+}
+
+void android_main(struct android_app *appPtr) {
 #else
 int main() {
 #endif
@@ -107,7 +120,11 @@ int main() {
   XSelectInput(displayPtr, window, ExposureMask | KeyPressMask);
   XMapWindow(displayPtr, window);
 #elif defined(PLATFORM_ANDROID)
-  ANativeWindow* windowPtr = app->window;
+  appPtr->onAppCmd = handleAppCmd;
+  
+  std::unique_lock<std::mutex> lock(waitForWindowMutex);
+  windowReadyConditionVariable.wait(lock);
+  ANativeWindow* windowPtr = appPtr->window;
 #endif
 
   // =========================================================================
@@ -641,7 +658,7 @@ int main() {
 
   std::vector<uint32_t> vertexShaderSource = loadShaderFile(
 #if defined(PLATFORM_ANDROID)
-      app,
+      appPtr,
 #endif
       "shader.vert.spv");
 
@@ -666,7 +683,7 @@ int main() {
 
   std::vector<uint32_t> fragmentShaderSource = loadShaderFile(
 #if defined(PLATFORM_ANDROID)
-      app,
+      appPtr,
 #endif
       "shader.frag.spv");
 
@@ -1220,6 +1237,11 @@ int main() {
 #if defined(PLATFORM_LINUX)
     XEvent event;
     XNextEvent(displayPtr, &event);
+#elif defined(PLATFORM_ANDROID)
+    int ident;
+    int events;
+    android_poll_source *sourcePtr;
+    ident = ALooper_pollAll(0, NULL, &events, (void **)&sourcePtr);
 #endif
 
     result = vkWaitForFences(deviceHandle, 1,
