@@ -17,13 +17,42 @@
 #include <vulkan/vulkan_android.h>
 #endif
 
-void printSection(std::string sectionName) {
+#define STRING_RESET "\033[0m"
+#define STRING_INFO "\033[37m"
+#define STRING_WARNING "\033[33m"
+#define STRING_ERROR "\033[36m"
+
+#define PRINT_MESSAGE(stream, message) stream << message << std::endl;
+
+VkBool32
+debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+              VkDebugUtilsMessageTypeFlagsEXT messageTypes,
+              const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData,
+              void *pUserData) {
+
+  std::string message = pCallbackData->pMessage;
+
 #if defined(PLATFORM_ANDROID)
-  __android_log_print(ANDROID_LOG_INFO, "[vulkan_development]", "%s",
-      sectionName.c_str());
+  __android_log_print(ANDROID_LOG_ERROR, "[vulkan_development]", "%s",
+      message.c_str());
 #else
-  printf("[%s\n", sectionName.c_str());
+  if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT) {
+    message = STRING_INFO + message + STRING_RESET;
+    PRINT_MESSAGE(std::cout, message.c_str());
+  }
+
+  if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
+    message = STRING_WARNING + message + STRING_RESET;
+    PRINT_MESSAGE(std::cerr, message.c_str());
+  }
+
+  if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) {
+    message = STRING_ERROR + message + STRING_RESET;
+    PRINT_MESSAGE(std::cerr, message.c_str());
+  }
 #endif
+
+  return VK_FALSE;
 }
 
 void throwExceptionVulkanAPI(VkResult result, const std::string& functionName) {
@@ -105,7 +134,6 @@ int main() {
 
   // =========================================================================
   // Window
-  printSection("Window");
 
 #if defined(PLATFORM_LINUX)
   Display *displayPtr = XOpenDisplay(NULL);
@@ -137,7 +165,42 @@ int main() {
 
   // =========================================================================
   // Vulkan Instance
-  printSection("Vulkan Instance");
+
+  std::vector<VkValidationFeatureEnableEXT> validationFeatureEnableList = {
+      // VK_VALIDATION_FEATURE_ENABLE_BEST_PRACTICES_EXT,
+      VK_VALIDATION_FEATURE_ENABLE_DEBUG_PRINTF_EXT,
+      VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT};
+
+  VkDebugUtilsMessageSeverityFlagBitsEXT debugUtilsMessageSeverityFlagBits =
+      (VkDebugUtilsMessageSeverityFlagBitsEXT)(
+          // VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
+          VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT |
+          VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
+          VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT);
+
+  VkDebugUtilsMessageTypeFlagBitsEXT debugUtilsMessageTypeFlagBits =
+      (VkDebugUtilsMessageTypeFlagBitsEXT)(
+          // VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
+          VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
+          VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT);
+
+  VkValidationFeaturesEXT validationFeatures = {
+      .sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT,
+      .pNext = NULL,
+      .enabledValidationFeatureCount =
+          (uint32_t)validationFeatureEnableList.size(),
+      .pEnabledValidationFeatures = validationFeatureEnableList.data(),
+      .disabledValidationFeatureCount = 0,
+      .pDisabledValidationFeatures = NULL};
+
+  VkDebugUtilsMessengerCreateInfoEXT debugUtilsMessengerCreateInfo = {
+      .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
+      .pNext = &validationFeatures,
+      .flags = 0,
+      .messageSeverity = debugUtilsMessageSeverityFlagBits,
+      .messageType = debugUtilsMessageTypeFlagBits,
+      .pfnUserCallback = &debugCallback,
+      .pUserData = NULL};
 
   VkApplicationInfo applicationInfo = {
       .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
@@ -148,7 +211,7 @@ int main() {
       .engineVersion = VK_MAKE_VERSION(1, 0, 0),
       .apiVersion = VK_API_VERSION_1_3};
 
-  std::vector<const char *> instanceLayerList = {};
+  std::vector<const char *> instanceLayerList = {"VK_LAYER_KHRONOS_validation"};
 
   std::vector<const char *> instanceExtensionList = {
 #if defined(PLATFORM_LINUX)
@@ -156,11 +219,12 @@ int main() {
 #elif defined(PLATFORM_ANDROID)
       "VK_KHR_android_surface",
 #endif
-      "VK_KHR_surface"};
+      "VK_KHR_surface",
+      VK_EXT_DEBUG_UTILS_EXTENSION_NAME};
 
   VkInstanceCreateInfo instanceCreateInfo = {
       .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
-      .pNext = NULL,
+      .pNext = &debugUtilsMessengerCreateInfo,
       .flags = 0,
       .pApplicationInfo = &applicationInfo,
       .enabledLayerCount = (uint32_t)instanceLayerList.size(),
@@ -178,7 +242,6 @@ int main() {
 
   // =========================================================================
   // Window Surface
-  printSection("Window Surface");
 
   VkSurfaceKHR surfaceHandle = VK_NULL_HANDLE;
 
@@ -207,7 +270,6 @@ int main() {
 
   // =========================================================================
   // Physical Device
-  printSection("Physical Device");
 
   uint32_t physicalDeviceCount = 0;
   result =
@@ -239,13 +301,11 @@ int main() {
 
   // =========================================================================
   // Physical Device Features
-  printSection("Physical Device Features");
 
   VkPhysicalDeviceFeatures deviceFeatures = {};
 
   // =========================================================================
   // Physical Device Submission Queue Families
-  printSection("Physical Device Submission Queue Families");
 
   uint32_t queueFamilyPropertyCount = 0;
   vkGetPhysicalDeviceQueueFamilyProperties(activePhysicalDeviceHandle,
@@ -287,7 +347,6 @@ int main() {
 
   // =========================================================================
   // Logical Device
-  printSection("Logical Device");
 
   std::vector<const char *> deviceExtensionList = {"VK_KHR_swapchain"};
 
@@ -313,14 +372,12 @@ int main() {
 
   // =========================================================================
   // Submission Queue
-  printSection("Submission Queue");
 
   VkQueue queueHandle = VK_NULL_HANDLE;
   vkGetDeviceQueue(deviceHandle, queueFamilyIndex, 0, &queueHandle);
 
   // =========================================================================
   // Command Pool
-  printSection("Command Pool");
 
   VkCommandPoolCreateInfo commandPoolCreateInfo = {
       .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
@@ -338,7 +395,6 @@ int main() {
 
   // =========================================================================
   // Command Buffers
-  printSection("Command Buffers");
 
   VkCommandBufferAllocateInfo commandBufferAllocateInfo = {
       .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
@@ -359,7 +415,6 @@ int main() {
 
   // =========================================================================
   // Surface Features
-  printSection("Surface Features");
 
   VkSurfaceCapabilitiesKHR surfaceCapabilities;
   result = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
@@ -408,7 +463,6 @@ int main() {
 
   // =========================================================================
   // Swapchain
-  printSection("Swapchain");
 
   VkSwapchainCreateInfoKHR swapchainCreateInfo = {
       .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
@@ -441,7 +495,6 @@ int main() {
 
   // =========================================================================
   // Render Pass
-  printSection("Render Pass");
 
   std::vector<VkAttachmentDescription> attachmentDescriptionList = {
       {.flags = 0,
@@ -490,7 +543,6 @@ int main() {
 
   // =========================================================================
   // Swapchain Images, Swapchain Image Views
-  printSection("Swapchain Images, Swapchain Image Views");
 
   uint32_t swapchainImageCount = 0;
   result = vkGetSwapchainImagesKHR(deviceHandle, swapchainHandle,
@@ -536,7 +588,6 @@ int main() {
 
   // =========================================================================
   // Framebuffers
-  printSection("Framebuffers");
 
   std::vector<VkFramebuffer> framebufferHandleList(swapchainImageCount,
                                                    VK_NULL_HANDLE);
@@ -566,7 +617,6 @@ int main() {
 
   // =========================================================================
   // Descriptor Pool
-  printSection("Descriptor Pool");
 
   std::vector<VkDescriptorPoolSize> descriptorPoolSizeList = {
       {.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, .descriptorCount = 1}};
@@ -589,7 +639,6 @@ int main() {
 
   // =========================================================================
   // Descriptor Set Layout
-  printSection("Descriptor Set Layout");
 
   std::vector<VkDescriptorSetLayoutBinding> descriptorSetLayoutBindingList = {
       {.binding = 0,
@@ -616,7 +665,6 @@ int main() {
 
   // =========================================================================
   // Allocate Descriptor Sets
-  printSection("Allocate Descriptor Sets");
 
   std::vector<VkDescriptorSetLayout> descriptorSetLayoutHandleList = {
       descriptorSetLayoutHandle};
@@ -641,7 +689,6 @@ int main() {
 
   // =========================================================================
   // Pipeline Layout
-  printSection("Pipeline Layout");
 
   VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = {
       .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
@@ -662,7 +709,6 @@ int main() {
 
   // =========================================================================
   // Vertex Shader Module
-  printSection("Vertex Shader Module");
 
   std::vector<uint32_t> vertexShaderSource = loadShaderFile(
 #if defined(PLATFORM_ANDROID)
@@ -687,7 +733,6 @@ int main() {
 
   // =========================================================================
   // Fragment Shader Module
-  printSection("Fragment Shader Module");
 
   std::vector<uint32_t> fragmentShaderSource = loadShaderFile(
 #if defined(PLATFORM_ANDROID)
@@ -712,7 +757,6 @@ int main() {
 
   // =========================================================================
   // Graphics Pipeline
-  printSection("Graphics Pipeline");
 
   std::vector<VkPipelineShaderStageCreateInfo>
       pipelineShaderStageCreateInfoList = {
@@ -871,7 +915,6 @@ int main() {
 
   // =========================================================================
   // Vertex Buffer
-  printSection("Vertex Buffer");
 
   float vertexBuffer[12] = {
     -0.5, -0.5, 0.0,
@@ -949,7 +992,6 @@ int main() {
 
   // =========================================================================
   // Index Buffer
-  printSection("Index Buffer");
 
   uint32_t indexBuffer[6] = {
     0, 1, 2,
@@ -1025,7 +1067,6 @@ int main() {
 
   // =========================================================================
   // Uniform Buffer
-  printSection("Uniform Buffer");
 
   struct UniformStructure {
     float cameraPosition[4] = {0, 0, 0, 1};
@@ -1104,7 +1145,6 @@ int main() {
 
   // =========================================================================
   // Update Descriptor Set
-  printSection("Update Descriptor Set");
 
   VkDescriptorBufferInfo uniformDescriptorInfo = {
       .buffer = uniformBufferHandle, .offset = 0, .range = VK_WHOLE_SIZE};
@@ -1126,7 +1166,6 @@ int main() {
 
   // =========================================================================
   // Record Render Pass Command Buffers
-  printSection("Record Render Pass Command Buffers");
 
   for (uint32_t x = 0; x < swapchainImageCount; x++) {
     VkCommandBufferBeginInfo renderCommandBufferBeginInfo = {
@@ -1186,7 +1225,6 @@ int main() {
 
   // =========================================================================
   // Fences, Semaphores
-  printSection("Fences, Semaphores");
 
   std::vector<VkFence> imageAvailableFenceHandleList(swapchainImageCount,
                                                      VK_NULL_HANDLE);
@@ -1237,7 +1275,6 @@ int main() {
 
   // =========================================================================
   // Main Loop
-  printSection("Main Loop");
 
   uint32_t currentFrame = 0;
 
@@ -1324,7 +1361,6 @@ int main() {
 
   // =========================================================================
   // Cleanup
-  printSection("Cleanup");
 
   result = vkDeviceWaitIdle(deviceHandle);
 

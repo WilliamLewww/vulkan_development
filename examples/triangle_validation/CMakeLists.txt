@@ -1,20 +1,24 @@
 cmake_minimum_required (VERSION 3.21)
-project(triangle_minimal)
+project(triangle_validation)
 
 find_package(Vulkan REQUIRED)
+get_filename_component(VULKAN_LIBRARY_PATH ${Vulkan_LIBRARY} DIRECTORY)
+if(NOT EXISTS "${VULKAN_LIBRARY_PATH}/libVkLayer_khronos_validation.so")
+  message(FATAL_ERROR "Could not find libVkLayer_khronos_validation.so")
+endif()
 
 add_compile_definitions(SHARE_PATH="${CMAKE_INSTALL_PREFIX}/share")
 
 if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
-  add_executable(triangle_minimal main.cpp)
+  add_executable(triangle_validation main.cpp)
   add_compile_definitions(PLATFORM_LINUX=1)
 
   find_package(X11)
-  target_link_libraries(triangle_minimal X11)
+  target_link_libraries(triangle_validation X11)
 elseif(${CMAKE_SYSTEM_NAME} STREQUAL "Android")
-  add_library(triangle_minimal SHARED main.cpp)
-  target_link_libraries(triangle_minimal log)
-  target_link_libraries(triangle_minimal android)
+  add_library(triangle_validation SHARED main.cpp)
+  target_link_libraries(triangle_validation log)
+  target_link_libraries(triangle_validation android)
   add_compile_definitions(PLATFORM_ANDROID=1)
   add_compile_definitions(ANDROID_STL=c++_shared)
 
@@ -24,14 +28,14 @@ elseif(${CMAKE_SYSTEM_NAME} STREQUAL "Android")
   set(CMAKE_SHARED_LINKER_FLAGS
       "${CMAKE_SHARED_LINKER_FLAGS} -u ANativeActivity_onCreate")
 
-  target_link_libraries(triangle_minimal native_app_glue)
+  target_link_libraries(triangle_validation native_app_glue)
 endif()
 
-include_directories(triangle_minimal ${Vulkan_INCLUDE_DIRS})
-target_link_libraries(triangle_minimal ${Vulkan_LIBRARIES})
+include_directories(triangle_validation ${Vulkan_INCLUDE_DIRS})
+target_link_libraries(triangle_validation ${Vulkan_LIBRARIES})
 
 if(${CMAKE_SYSTEM_NAME} STREQUAL "Android")
-  add_custom_command(TARGET triangle_minimal POST_BUILD
+  add_custom_command(TARGET triangle_validation POST_BUILD
       COMMAND ${CMAKE_COMMAND} -E copy_directory
       "${CMAKE_SOURCE_DIR}/android" "${CMAKE_BINARY_DIR}/android")
 
@@ -41,12 +45,17 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL "Android")
   configure_file("${CMAKE_SOURCE_DIR}/shader.frag"
                  "${CMAKE_BINARY_DIR}/android/src/main/shaders/shader.frag")
 
-  add_custom_command(TARGET triangle_minimal POST_BUILD
+  add_custom_command(TARGET triangle_validation POST_BUILD
       COMMAND ${CMAKE_COMMAND} -E copy
-      "${CMAKE_BINARY_DIR}/libtriangle_minimal.so"
+      "${CMAKE_BINARY_DIR}/libtriangle_validation.so"
       "${CMAKE_BINARY_DIR}/android/src/main/jniLibs/${CMAKE_ANDROID_ARCH_ABI}/libmain.so")
 
-  add_custom_command(TARGET triangle_minimal
+  add_custom_command(TARGET triangle_validation POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy
+      "${VULKAN_LIBRARY_PATH}/libVkLayer_khronos_validation.so"
+      "${CMAKE_BINARY_DIR}/android/src/main/jniLibs/${CMAKE_ANDROID_ARCH_ABI}/libVkLayer_khronos_validation.so")
+
+  add_custom_command(TARGET triangle_validation
                      COMMAND gradle build 
                      WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/android")
 
@@ -60,24 +69,24 @@ else()
     "shader.vert" 
     "shader.frag")
  
-  file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/shaders/triangle_minimal)
+  file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/shaders/triangle_validation)
   foreach(SHADER ${SHADERS})
           get_filename_component(SHADER_NAME ${SHADER} NAME)
   
           add_custom_command(
-              OUTPUT shaders/triangle_minimal/${SHADER_NAME}.spv
+              OUTPUT shaders/triangle_validation/${SHADER_NAME}.spv
               COMMAND ${Vulkan_GLSLANG_VALIDATOR_EXECUTABLE}
               --target-env vulkan1.2
-              -o shaders/triangle_minimal/${SHADER_NAME}.spv ${SHADER}
+              -o shaders/triangle_validation/${SHADER_NAME}.spv ${SHADER}
               DEPENDS ${SHADER}
           )
           list(APPEND SHADERS_LIST
-              shaders/triangle_minimal/${SHADER_NAME}.spv)
+              shaders/triangle_validation/${SHADER_NAME}.spv)
   endforeach()
   
   add_custom_target(shaders DEPENDS ${SHADERS_LIST})
-  add_dependencies(triangle_minimal shaders)
+  add_dependencies(triangle_validation shaders)
   
   install(DIRECTORY ${CMAKE_BINARY_DIR}/shaders DESTINATION share)
-  install(TARGETS triangle_minimal DESTINATION bin)
+  install(TARGETS triangle_validation DESTINATION bin)
 endif()
