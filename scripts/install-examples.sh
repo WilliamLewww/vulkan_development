@@ -25,8 +25,8 @@ do
     -gve=*|--glslang-validator-executable=*)
       CMAKE_FLAGS="$CMAKE_FLAGS -DGLSLANG_VALIDATOR_EXECUTABLE=${i#*=}"
     ;;
-    -ns|--no-shaders)
-      CMAKE_FLAGS="-DNO_SHADERS=1"
+    -ve|--validation-enabled)
+      CMAKE_FLAGS="$CMAKE_FLAGS -DVALIDATION_ENABLED=1"
     ;;
     -d|--delete)
       DELETE=1
@@ -78,7 +78,6 @@ then
   make install -j${THREADS} -C ${OUT_PATH}/build/${EXAMPLE}
 else
   echo "Examples"
-  echo "  triangle_minimal"
-  echo "  headless_triangle_minimal"
-  echo "  headless_triangle_validation"
+  echo "  triangle"
+  echo "  headless_triangle"
 fi

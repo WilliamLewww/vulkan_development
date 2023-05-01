@@ -5,18 +5,7 @@
 #include <vector>
 #include <cstring>
 
-#if defined(PLATFORM_LINUX)
-#include <X11/Xlib.h>
-#include <vulkan/vulkan_xlib.h>
-#elif defined(PLATFORM_ANDROID)
-#include <android/asset_manager.h>
-#include <android/log.h>
-#include <android/native_window.h>
-#include <android/looper.h>
-#include <android_native_app_glue.h>
-#include <vulkan/vulkan_android.h>
-#endif
-
+#if defined(VALIDATION_ENABLED)
 #define STRING_RESET "\033[0m"
 #define STRING_INFO "\033[37m"
 #define STRING_WARNING "\033[33m"
@@ -32,10 +21,6 @@ debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
 
   std::string message = pCallbackData->pMessage;
 
-#if defined(PLATFORM_ANDROID)
-  __android_log_print(ANDROID_LOG_ERROR, "[vulkan_development]", "%s",
-      message.c_str());
-#else
   if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT) {
     message = STRING_INFO + message + STRING_RESET;
     PRINT_MESSAGE(std::cout, message.c_str());
@@ -50,46 +35,27 @@ debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
     message = STRING_ERROR + message + STRING_RESET;
     PRINT_MESSAGE(std::cerr, message.c_str());
   }
-#endif
 
   return VK_FALSE;
 }
+#endif
 
-void throwExceptionVulkanAPI(VkResult result, const std::string& functionName) {
+void throwExceptionVulkanAPI(VkResult result, const std::string &functionName) {
   std::string message = "Vulkan API exception: return code " +
                         std::to_string(result) + " (" + functionName + ")";
 
-#if defined(PLATFORM_ANDROID)
-  __android_log_print(ANDROID_LOG_ERROR, "[vulkan_development]", "%s",
-      message.c_str());
-#else
   throw std::runtime_error(message);
-#endif
 }
 
-std::vector<uint32_t> loadShaderFile(
-#if defined(PLATFORM_ANDROID)
-    struct android_app *app,
-#endif
-    std::string shaderFileName) {
-#if defined(PLATFORM_ANDROID)
-  std::string filePath = "shaders/" + shaderFileName;
-  AAsset* asset = AAssetManager_open(app->activity->assetManager,
-      filePath.c_str(), AASSET_MODE_STREAMING);
-
-  std::streamsize shaderFileSize = AAsset_getLength(asset);
-  std::vector<uint32_t> shaderSource(shaderFileSize / sizeof(uint32_t));
-  AAsset_read(asset, static_cast<void*>(shaderSource.data()), shaderFileSize);
-  AAsset_close(asset);
-#else
+std::ifstream getShaderFile(std::string shaderFileName) {
   // relative to binary
-  std::ifstream shaderFile("shaders/triangle_minimal/" +
+  std::ifstream shaderFile("shaders/headless_triangle_validation/" +
                            shaderFileName, std::ios::binary | std::ios::ate);
 
   // install local directory
   if (!shaderFile) {
     std::string shaderPath = std::string(SHARE_PATH) +
-        std::string("/shaders/triangle_minimal/") + shaderFileName;
+        std::string("/shaders/headless_triangle_validation/") + shaderFileName;
 
     shaderFile.open(shaderPath.c_str(), std::ios::binary | std::ios::ate);
   }
@@ -97,75 +63,24 @@ std::vector<uint32_t> loadShaderFile(
   // install global directory
   if (!shaderFile) {
     std::string shaderPath = 
-        std::string("/usr/local/share/shaders/triangle_minimal/") +
+        std::string("/usr/local/share/shaders/headless_triangle_validation/") +
         shaderFileName;
 
     shaderFile.open(shaderPath.c_str(), std::ios::binary | std::ios::ate);
   }
 
-  std::streamsize shaderFileSize = shaderFile.tellg();
-  shaderFile.seekg(0, std::ios::beg);
-  std::vector<uint32_t> shaderSource(shaderFileSize / sizeof(uint32_t));
-
-  shaderFile.read(reinterpret_cast<char *>(shaderSource.data()),
-                  shaderFileSize);
-
-  shaderFile.close();
-#endif
-  return shaderSource;
+  return shaderFile;
 }
 
-#if defined(PLATFORM_ANDROID)
-bool isWindowReady = false;
-
-static void handleAppCmd(struct android_app *appPtr, int32_t cmd) {
-  switch (cmd) {
-    case APP_CMD_INIT_WINDOW:
-      isWindowReady = true;
-      break;
-  }
-}
-
-void android_main(struct android_app *appPtr) {
-#else
 int main() {
-#endif
   VkResult result;
-
-  // =========================================================================
-  // Window
-
-#if defined(PLATFORM_LINUX)
-  Display *displayPtr = XOpenDisplay(NULL);
-  int screen = DefaultScreen(displayPtr);
-
-  Window window = XCreateSimpleWindow(
-      displayPtr, RootWindow(displayPtr, screen), 10, 10, 100, 100, 1,
-      BlackPixel(displayPtr, screen), WhitePixel(displayPtr, screen));
-
-  XSelectInput(displayPtr, window, ExposureMask | KeyPressMask);
-  XMapWindow(displayPtr, window);
-#elif defined(PLATFORM_ANDROID)
-  appPtr->onAppCmd = handleAppCmd;
- 
-  while (!isWindowReady) {
-    int ident;
-    int events;
-    android_poll_source *sourcePtr;
-    while ((ident = ALooper_pollAll(0, NULL, &events, (void **)&sourcePtr))
-            >= 0) {
-      if (sourcePtr != NULL) {
-        sourcePtr->process(appPtr, sourcePtr);
-      }
-    };
-  }
-
-  ANativeWindow* windowPtr = appPtr->window;
-#endif
 
   // =========================================================================
   // Vulkan Instance
 
+  VkDebugUtilsMessengerCreateInfoEXT *debugUtilsMessengerCreateInfoPtr = NULL;
+
+#if defined(VALIDATION_ENABLED)
   std::vector<VkValidationFeatureEnableEXT> validationFeatureEnableList = {
       // VK_VALIDATION_FEATURE_ENABLE_BEST_PRACTICES_EXT,
       VK_VALIDATION_FEATURE_ENABLE_DEBUG_PRINTF_EXT,
@@ -202,6 +117,9 @@ int main() {
       .pfnUserCallback = &debugCallback,
       .pUserData = NULL};
 
+  debugUtilsMessengerCreateInfoPtr = &debugUtilsMessengerCreateInfo;
+#endif
+
   VkApplicationInfo applicationInfo = {
       .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
       .pNext = NULL,
@@ -211,20 +129,17 @@ int main() {
       .engineVersion = VK_MAKE_VERSION(1, 0, 0),
       .apiVersion = VK_API_VERSION_1_3};
 
-  std::vector<const char *> instanceLayerList = {"VK_LAYER_KHRONOS_validation"};
+  std::vector<const char *> instanceLayerList = {};
+  std::vector<const char *> instanceExtensionList = {};
 
-  std::vector<const char *> instanceExtensionList = {
-#if defined(PLATFORM_LINUX)
-      "VK_KHR_xlib_surface",
-#elif defined(PLATFORM_ANDROID)
-      "VK_KHR_android_surface",
+#if defined(VALIDATION_ENABLED)
+  instanceLayerList.push_back("VK_LAYER_KHRONOS_validation");
+  instanceExtensionList.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 #endif
-      "VK_KHR_surface",
-      VK_EXT_DEBUG_UTILS_EXTENSION_NAME};
 
   VkInstanceCreateInfo instanceCreateInfo = {
       .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
-      .pNext = &debugUtilsMessengerCreateInfo,
+      .pNext = debugUtilsMessengerCreateInfoPtr,
       .flags = 0,
       .pApplicationInfo = &applicationInfo,
       .enabledLayerCount = (uint32_t)instanceLayerList.size(),
@@ -239,34 +154,6 @@ int main() {
   if (result != VK_SUCCESS) {
     throwExceptionVulkanAPI(result, "vkCreateInstance");
   }
-
-  // =========================================================================
-  // Window Surface
-
-  VkSurfaceKHR surfaceHandle = VK_NULL_HANDLE;
-
-#if defined(PLATFORM_LINUX)
-  VkXlibSurfaceCreateInfoKHR xlibSurfaceCreateInfo = {
-    .sType = VK_STRUCTURE_TYPE_XLIB_SURFACE_CREATE_INFO_KHR,
-    .pNext = NULL,
-    .flags = 0,
-    .dpy = displayPtr,
-    .window = window
-  };
-
-  result = vkCreateXlibSurfaceKHR(instanceHandle, &xlibSurfaceCreateInfo, NULL,
-                                  &surfaceHandle);
-#elif defined(PLATFORM_ANDROID)
-  VkAndroidSurfaceCreateInfoKHR androidSurfaceCreateInfo = {
-    .sType = VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR,
-    .pNext = NULL,
-    .flags = 0,
-    .window = windowPtr
-  };
-
-  result = vkCreateAndroidSurfaceKHR(instanceHandle, &androidSurfaceCreateInfo,
-                                     NULL, &surfaceHandle);
-#endif
 
   // =========================================================================
   // Physical Device
@@ -321,18 +208,8 @@ int main() {
   uint32_t queueFamilyIndex = -1;
   for (uint32_t x = 0; x < queueFamilyPropertiesList.size(); x++) {
     if (queueFamilyPropertiesList[x].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
-      VkBool32 isPresentSupported = false;
-      result = vkGetPhysicalDeviceSurfaceSupportKHR(
-          activePhysicalDeviceHandle, x, surfaceHandle, &isPresentSupported);
-
-      if (result != VK_SUCCESS) {
-        throwExceptionVulkanAPI(result, "vkGetPhysicalDeviceSurfaceSupportKHR");
-      }
-
-      if (isPresentSupported) {
-        queueFamilyIndex = x;
-        break;
-      }
+      queueFamilyIndex = x;
+      break;
     }
   }
 
@@ -348,7 +225,7 @@ int main() {
   // =========================================================================
   // Logical Device
 
-  std::vector<const char *> deviceExtensionList = {"VK_KHR_swapchain"};
+  std::vector<const char *> deviceExtensionList = {};
 
   VkDeviceCreateInfo deviceCreateInfo = {
       .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
@@ -414,98 +291,18 @@ int main() {
   }
 
   // =========================================================================
-  // Surface Features
-
-  VkSurfaceCapabilitiesKHR surfaceCapabilities;
-  result = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
-      activePhysicalDeviceHandle, surfaceHandle, &surfaceCapabilities);
-
-  if (result != VK_SUCCESS) {
-    throwExceptionVulkanAPI(result,
-                            "vkGetPhysicalDeviceSurfaceCapabilitiesKHR");
-  }
-
-  uint32_t surfaceFormatCount = 0;
-  result = vkGetPhysicalDeviceSurfaceFormatsKHR(
-      activePhysicalDeviceHandle, surfaceHandle, &surfaceFormatCount, NULL);
-
-  if (result != VK_SUCCESS) {
-    throwExceptionVulkanAPI(result, "vkGetPhysicalDeviceSurfaceFormatsKHR");
-  }
-
-  std::vector<VkSurfaceFormatKHR> surfaceFormatList(surfaceFormatCount);
-  result = vkGetPhysicalDeviceSurfaceFormatsKHR(
-      activePhysicalDeviceHandle, surfaceHandle, &surfaceFormatCount,
-      surfaceFormatList.data());
-
-  if (result != VK_SUCCESS) {
-    throwExceptionVulkanAPI(result, "vkGetPhysicalDeviceSurfaceFormatsKHR");
-  }
-
-  uint32_t presentModeCount = 0;
-  result = vkGetPhysicalDeviceSurfacePresentModesKHR(
-      activePhysicalDeviceHandle, surfaceHandle, &presentModeCount, NULL);
-
-  if (result != VK_SUCCESS) {
-    throwExceptionVulkanAPI(result,
-                            "vkGetPhysicalDeviceSurfacePresentModesKHR");
-  }
-
-  std::vector<VkPresentModeKHR> presentModeList(presentModeCount);
-  result = vkGetPhysicalDeviceSurfacePresentModesKHR(
-      activePhysicalDeviceHandle, surfaceHandle, &presentModeCount,
-      presentModeList.data());
-
-  if (result != VK_SUCCESS) {
-    throwExceptionVulkanAPI(result,
-                            "vkGetPhysicalDeviceSurfacePresentModesKHR");
-  }
-
-  // =========================================================================
-  // Swapchain
-
-  VkSwapchainCreateInfoKHR swapchainCreateInfo = {
-      .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
-      .pNext = NULL,
-      .flags = 0,
-      .surface = surfaceHandle,
-      .minImageCount = surfaceCapabilities.minImageCount + 1,
-      .imageFormat = surfaceFormatList[0].format,
-      .imageColorSpace = surfaceFormatList[0].colorSpace,
-      .imageExtent = surfaceCapabilities.currentExtent,
-      .imageArrayLayers = 1,
-      .imageUsage =
-          VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
-      .imageSharingMode = VK_SHARING_MODE_EXCLUSIVE,
-      .queueFamilyIndexCount = 1,
-      .pQueueFamilyIndices = &queueFamilyIndex,
-      .preTransform = surfaceCapabilities.currentTransform,
-      .compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
-      .presentMode = presentModeList[0],
-      .clipped = VK_TRUE,
-      .oldSwapchain = VK_NULL_HANDLE};
-
-  VkSwapchainKHR swapchainHandle = VK_NULL_HANDLE;
-  result = vkCreateSwapchainKHR(deviceHandle, &swapchainCreateInfo, NULL,
-                                &swapchainHandle);
-
-  if (result != VK_SUCCESS) {
-    throwExceptionVulkanAPI(result, "vkCreateSwapchainKHR");
-  }
-
-  // =========================================================================
   // Render Pass
 
   std::vector<VkAttachmentDescription> attachmentDescriptionList = {
       {.flags = 0,
-       .format = surfaceFormatList[0].format,
+       .format = VK_FORMAT_R8G8B8A8_UNORM,
        .samples = VK_SAMPLE_COUNT_1_BIT,
        .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
        .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
        .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
        .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
        .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-       .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR}};
+       .finalLayout = VK_IMAGE_LAYOUT_GENERAL}};
 
   std::vector<VkAttachmentReference> attachmentReferenceList = {
       {.attachment = 0, .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL}};
@@ -542,44 +339,94 @@ int main() {
   }
 
   // =========================================================================
-  // Swapchain Images, Swapchain Image Views
+  // Render Pass Images, Render Pass Image Views
 
-  uint32_t swapchainImageCount = 0;
-  result = vkGetSwapchainImagesKHR(deviceHandle, swapchainHandle,
-                                   &swapchainImageCount, NULL);
+  std::vector<VkImage> renderPassImageHandleList(3, VK_NULL_HANDLE);
+  std::vector<VkImageView> renderPassImageViewHandleList(3, VK_NULL_HANDLE);
 
-  if (result != VK_SUCCESS) {
-    throwExceptionVulkanAPI(result, "vkGetSwapchainImagesKHR");
-  }
+  for (uint32_t x = 0; x < renderPassImageHandleList.size(); x++) {
+    VkImageCreateInfo renderPassImageCreateInfo = {
+        .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+        .pNext = NULL,
+        .flags = 0,
+        .imageType = VK_IMAGE_TYPE_2D,
+        .format = VK_FORMAT_R8G8B8A8_UNORM,
+        .extent = {.width = 800,
+                   .height = 600,
+                   .depth = 1},
+        .mipLevels = 1,
+        .arrayLayers = 1,
+        .samples = VK_SAMPLE_COUNT_1_BIT,
+        .tiling = VK_IMAGE_TILING_OPTIMAL,
+        .usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
+                 VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+        .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+        .queueFamilyIndexCount = 1,
+        .pQueueFamilyIndices = &queueFamilyIndex,
+        .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED};
 
-  std::vector<VkImage> swapchainImageHandleList(swapchainImageCount);
-  result = vkGetSwapchainImagesKHR(deviceHandle, swapchainHandle,
-                                   &swapchainImageCount,
-                                   swapchainImageHandleList.data());
+    result = vkCreateImage(deviceHandle, &renderPassImageCreateInfo, NULL,
+                           &renderPassImageHandleList[x]);
 
-  if (result != VK_SUCCESS) {
-    throwExceptionVulkanAPI(result, "vkGetSwapchainImagesKHR");
-  }
+    if (result != VK_SUCCESS) {
+      throwExceptionVulkanAPI(result, "vkCreateImage");
+    }
 
-  std::vector<VkImageView> swapchainImageViewHandleList(swapchainImageCount,
-                                                        VK_NULL_HANDLE);
+    VkMemoryRequirements renderPassImageMemoryRequirements;
+    vkGetImageMemoryRequirements(deviceHandle, renderPassImageHandleList[x],
+                                 &renderPassImageMemoryRequirements);
 
-  for (uint32_t x = 0; x < swapchainImageCount; x++) {
-    VkImageViewCreateInfo imageViewCreateInfo = {
+    uint32_t renderPassImageMemoryTypeIndex = -1;
+    for (uint32_t x = 0; x < physicalDeviceMemoryProperties.memoryTypeCount;
+         x++) {
+      if ((renderPassImageMemoryRequirements.memoryTypeBits & (1 << x)) &&
+          (physicalDeviceMemoryProperties.memoryTypes[x].propertyFlags &
+           VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) ==
+              VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) {
+
+        renderPassImageMemoryTypeIndex = x;
+        break;
+      }
+    }
+
+    VkMemoryAllocateInfo renderPassImageMemoryAllocateInfo = {
+        .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+        .pNext = NULL,
+        .allocationSize = renderPassImageMemoryRequirements.size,
+        .memoryTypeIndex = renderPassImageMemoryTypeIndex};
+
+    VkDeviceMemory renderPassImageDeviceMemoryHandle = VK_NULL_HANDLE;
+    result = vkAllocateMemory(deviceHandle, &renderPassImageMemoryAllocateInfo,
+                              NULL, &renderPassImageDeviceMemoryHandle);
+    if (result != VK_SUCCESS) {
+      throwExceptionVulkanAPI(result, "vkAllocateMemory");
+    }
+
+    result = vkBindImageMemory(deviceHandle, renderPassImageHandleList[x],
+                               renderPassImageDeviceMemoryHandle, 0);
+    if (result != VK_SUCCESS) {
+      throwExceptionVulkanAPI(result, "vkBindImageMemory");
+    }
+
+    VkImageViewCreateInfo renderPassImageViewCreateInfo = {
         .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
         .pNext = NULL,
         .flags = 0,
-        .image = swapchainImageHandleList[x],
+        .image = renderPassImageHandleList[x],
         .viewType = VK_IMAGE_VIEW_TYPE_2D,
-        .format = surfaceFormatList[0].format,
-        .components = {VK_COMPONENT_SWIZZLE_IDENTITY,
-                       VK_COMPONENT_SWIZZLE_IDENTITY,
-                       VK_COMPONENT_SWIZZLE_IDENTITY,
-                       VK_COMPONENT_SWIZZLE_IDENTITY},
-        .subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1}};
+        .format = VK_FORMAT_R8G8B8A8_UNORM,
+        .components = {.r = VK_COMPONENT_SWIZZLE_IDENTITY,
+                       .g = VK_COMPONENT_SWIZZLE_IDENTITY,
+                       .b = VK_COMPONENT_SWIZZLE_IDENTITY,
+                       .a = VK_COMPONENT_SWIZZLE_IDENTITY},
+        .subresourceRange = {.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                             .baseMipLevel = 0,
+                             .levelCount = 1,
+                             .baseArrayLayer = 0,
+                             .layerCount = 1}};
 
-    result = vkCreateImageView(deviceHandle, &imageViewCreateInfo, NULL,
-                               &swapchainImageViewHandleList[x]);
+    result = vkCreateImageView(deviceHandle, &renderPassImageViewCreateInfo, NULL,
+                               &renderPassImageViewHandleList[x]);
 
     if (result != VK_SUCCESS) {
       throwExceptionVulkanAPI(result, "vkCreateImageView");
@@ -589,12 +436,11 @@ int main() {
   // =========================================================================
   // Framebuffers
 
-  std::vector<VkFramebuffer> framebufferHandleList(swapchainImageCount,
-                                                   VK_NULL_HANDLE);
+  std::vector<VkFramebuffer> framebufferHandleList(3, VK_NULL_HANDLE);
 
-  for (uint32_t x = 0; x < swapchainImageCount; x++) {
+  for (uint32_t x = 0; x < framebufferHandleList.size(); x++) {
     std::vector<VkImageView> imageViewHandleList = {
-        swapchainImageViewHandleList[x]};
+        renderPassImageViewHandleList[x]};
 
     VkFramebufferCreateInfo framebufferCreateInfo = {
         .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
@@ -603,8 +449,8 @@ int main() {
         .renderPass = renderPassHandle,
         .attachmentCount = 1,
         .pAttachments = imageViewHandleList.data(),
-        .width = surfaceCapabilities.currentExtent.width,
-        .height = surfaceCapabilities.currentExtent.height,
+        .width = 800,
+        .height = 600,
         .layers = 1};
 
     result = vkCreateFramebuffer(deviceHandle, &framebufferCreateInfo, NULL,
@@ -619,7 +465,8 @@ int main() {
   // Descriptor Pool
 
   std::vector<VkDescriptorPoolSize> descriptorPoolSizeList = {
-      {.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, .descriptorCount = 1}};
+      {.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, .descriptorCount = 1},
+      {.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, .descriptorCount = 1}};
 
   VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = {
       .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
@@ -710,11 +557,15 @@ int main() {
   // =========================================================================
   // Vertex Shader Module
 
-  std::vector<uint32_t> vertexShaderSource = loadShaderFile(
-#if defined(PLATFORM_ANDROID)
-      appPtr,
-#endif
-      "shader.vert.spv");
+  std::ifstream vertexFile = getShaderFile("shader.vert.spv");
+  std::streamsize vertexFileSize = vertexFile.tellg();
+  vertexFile.seekg(0, std::ios::beg);
+  std::vector<uint32_t> vertexShaderSource(vertexFileSize / sizeof(uint32_t));
+
+  vertexFile.read(reinterpret_cast<char *>(vertexShaderSource.data()),
+                  vertexFileSize);
+
+  vertexFile.close();
 
   VkShaderModuleCreateInfo vertexShaderModuleCreateInfo = {
       .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
@@ -734,11 +585,16 @@ int main() {
   // =========================================================================
   // Fragment Shader Module
 
-  std::vector<uint32_t> fragmentShaderSource = loadShaderFile(
-#if defined(PLATFORM_ANDROID)
-      appPtr,
-#endif
-      "shader.frag.spv");
+  std::ifstream fragmentFile = getShaderFile("shader.frag.spv");
+  std::streamsize fragmentFileSize = fragmentFile.tellg();
+  fragmentFile.seekg(0, std::ios::beg);
+  std::vector<uint32_t> fragmentShaderSource(fragmentFileSize /
+                                             sizeof(uint32_t));
+
+  fragmentFile.read(reinterpret_cast<char *>(fragmentShaderSource.data()),
+                    fragmentFileSize);
+
+  fragmentFile.close();
 
   VkShaderModuleCreateInfo fragmentShaderModuleCreateInfo = {
       .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
@@ -804,14 +660,14 @@ int main() {
 
   VkViewport viewport = {
       .x = 0,
-      .y = (float)surfaceCapabilities.currentExtent.height,
-      .width = (float)surfaceCapabilities.currentExtent.width,
-      .height = -(float)surfaceCapabilities.currentExtent.height,
+      .y = 0,
+      .width = 800,
+      .height = 600,
       .minDepth = 0,
       .maxDepth = 1};
 
   VkRect2D screenRect2D = {.offset = {.x = 0, .y = 0},
-                           .extent = surfaceCapabilities.currentExtent};
+                           .extent = {.width = 800, .height = 600}};
 
   VkPipelineViewportStateCreateInfo pipelineViewportStateCreateInfo = {
       .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
@@ -1144,6 +1000,68 @@ int main() {
   vkUnmapMemory(deviceHandle, uniformDeviceMemoryHandle);
 
   // =========================================================================
+  // Result Buffer
+
+  VkMemoryRequirements renderPassImageMemoryRequirements;
+  vkGetImageMemoryRequirements(deviceHandle, renderPassImageHandleList[0],
+                               &renderPassImageMemoryRequirements);
+
+  VkBufferCreateInfo resultBufferCreateInfo = {
+      .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+      .pNext = NULL,
+      .flags = 0,
+      .size = renderPassImageMemoryRequirements.size,
+      .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
+               VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+      .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+      .queueFamilyIndexCount = 1,
+      .pQueueFamilyIndices = &queueFamilyIndex};
+
+  VkBuffer resultBufferHandle = VK_NULL_HANDLE;
+  result = vkCreateBuffer(deviceHandle, &resultBufferCreateInfo, NULL,
+                          &resultBufferHandle);
+
+  if (result != VK_SUCCESS) {
+    throwExceptionVulkanAPI(result, "vkCreateBuffer");
+  }
+
+  VkMemoryRequirements resultMemoryRequirements;
+  vkGetBufferMemoryRequirements(deviceHandle, resultBufferHandle,
+                                &resultMemoryRequirements);
+
+  uint32_t resultMemoryTypeIndex = -1;
+  for (uint32_t x = 0; x < physicalDeviceMemoryProperties.memoryTypeCount;
+       x++) {
+    if ((resultMemoryRequirements.memoryTypeBits & (1 << x)) &&
+        (physicalDeviceMemoryProperties.memoryTypes[x].propertyFlags &
+         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) ==
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) {
+
+      resultMemoryTypeIndex = x;
+      break;
+    }
+  }
+
+  VkMemoryAllocateInfo resultMemoryAllocateInfo = {
+      .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+      .pNext = NULL,
+      .allocationSize = resultMemoryRequirements.size,
+      .memoryTypeIndex = resultMemoryTypeIndex};
+
+  VkDeviceMemory resultDeviceMemoryHandle = VK_NULL_HANDLE;
+  result = vkAllocateMemory(deviceHandle, &resultMemoryAllocateInfo, NULL,
+                            &resultDeviceMemoryHandle);
+  if (result != VK_SUCCESS) {
+    throwExceptionVulkanAPI(result, "vkAllocateMemory");
+  }
+
+  result = vkBindBufferMemory(deviceHandle, resultBufferHandle,
+                              resultDeviceMemoryHandle, 0);
+  if (result != VK_SUCCESS) {
+    throwExceptionVulkanAPI(result, "vkBindBufferMemory");
+  }
+
+  // =========================================================================
   // Update Descriptor Set
 
   VkDescriptorBufferInfo uniformDescriptorInfo = {
@@ -1167,7 +1085,7 @@ int main() {
   // =========================================================================
   // Record Render Pass Command Buffers
 
-  for (uint32_t x = 0; x < swapchainImageCount; x++) {
+  for (uint32_t x = 0; x < renderPassImageHandleList.size(); x++) {
     VkCommandBufferBeginInfo renderCommandBufferBeginInfo = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
         .pNext = NULL,
@@ -1226,16 +1144,13 @@ int main() {
   // =========================================================================
   // Fences, Semaphores
 
-  std::vector<VkFence> imageAvailableFenceHandleList(swapchainImageCount,
-                                                     VK_NULL_HANDLE);
+  std::vector<VkFence> imageAvailableFenceHandleList(
+      renderPassImageHandleList.size(), VK_NULL_HANDLE);
 
-  std::vector<VkSemaphore> acquireImageSemaphoreHandleList(swapchainImageCount,
-                                                           VK_NULL_HANDLE);
+  std::vector<VkSemaphore> writeImageSemaphoreHandleList(
+      renderPassImageHandleList.size(), VK_NULL_HANDLE);
 
-  std::vector<VkSemaphore> writeImageSemaphoreHandleList(swapchainImageCount,
-                                                         VK_NULL_HANDLE);
-
-  for (uint32_t x = 0; x < swapchainImageCount; x++) {
+  for (uint32_t x = 0; x < renderPassImageHandleList.size(); x++) {
     VkFenceCreateInfo imageAvailableFenceCreateInfo = {
         .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
         .pNext = NULL,
@@ -1246,18 +1161,6 @@ int main() {
 
     if (result != VK_SUCCESS) {
       throwExceptionVulkanAPI(result, "vkCreateFence");
-    }
-
-    VkSemaphoreCreateInfo acquireImageSemaphoreCreateInfo = {
-        .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
-        .pNext = NULL,
-        .flags = 0};
-
-    result = vkCreateSemaphore(deviceHandle, &acquireImageSemaphoreCreateInfo,
-                               NULL, &acquireImageSemaphoreHandleList[x]);
-
-    if (result != VK_SUCCESS) {
-      throwExceptionVulkanAPI(result, "vkCreateSemaphore");
     }
 
     VkSemaphoreCreateInfo writeImageSemaphoreCreateInfo = {
@@ -1273,27 +1176,47 @@ int main() {
     }
   }
 
+  VkSubmitInfo signalFirstSemaphoreSubmitInfo = {
+      .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+      .pNext = NULL,
+      .waitSemaphoreCount = 0,
+      .pWaitSemaphores = NULL,
+      .pWaitDstStageMask = NULL,
+      .commandBufferCount = 0,
+      .pCommandBuffers = NULL,
+      .signalSemaphoreCount = 1,
+      .pSignalSemaphores = &writeImageSemaphoreHandleList[0]};
+
+  VkFenceCreateInfo signalFirstSemaphoreFenceCreateInfo = {
+      .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO, .pNext = NULL, .flags = 0};
+
+  VkFence signalFirstSemaphoreFenceHandle = VK_NULL_HANDLE;
+  result = vkCreateFence(deviceHandle, &signalFirstSemaphoreFenceCreateInfo,
+      NULL, &signalFirstSemaphoreFenceHandle);
+
+  if (result != VK_SUCCESS) {
+    throwExceptionVulkanAPI(result, "vkCreateFence");
+  }
+
+  result = vkQueueSubmit(queueHandle, 1, &signalFirstSemaphoreSubmitInfo,
+                         signalFirstSemaphoreFenceHandle);
+
+  if (result != VK_SUCCESS) {
+    throwExceptionVulkanAPI(result, "vkQueueSubmit");
+  }
+
+  result = vkWaitForFences(deviceHandle, 1, &signalFirstSemaphoreFenceHandle,
+                           true, UINT32_MAX);
+
+  if (result != VK_SUCCESS && result != VK_TIMEOUT) {
+    throwExceptionVulkanAPI(result, "vkWaitForFences");
+  }
+
   // =========================================================================
   // Main Loop
 
-  uint32_t currentFrame = 0;
-
+  uint32_t currentFrame = 0, previousFrame = 0;
   while (true) {
-#if defined(PLATFORM_LINUX)
-    XEvent event;
-    XNextEvent(displayPtr, &event);
-#elif defined(PLATFORM_ANDROID)
-    int ident;
-    int events;
-    android_poll_source *sourcePtr;
-    while ((ident = ALooper_pollAll(0, NULL, &events, (void **)&sourcePtr))
-            >= 0) {
-      if (sourcePtr != NULL) {
-        sourcePtr->process(appPtr, sourcePtr);
-      }
-    };
-#endif
-
     result = vkWaitForFences(deviceHandle, 1,
                              &imageAvailableFenceHandleList[currentFrame], true,
                              UINT32_MAX);
@@ -1309,16 +1232,6 @@ int main() {
       throwExceptionVulkanAPI(result, "vkResetFences");
     }
 
-    uint32_t currentImageIndex = -1;
-    result =
-        vkAcquireNextImageKHR(deviceHandle, swapchainHandle, UINT32_MAX,
-                              acquireImageSemaphoreHandleList[currentFrame],
-                              VK_NULL_HANDLE, &currentImageIndex);
-
-    if (result != VK_SUCCESS) {
-      throwExceptionVulkanAPI(result, "vkAcquireNextImageKHR");
-    }
-
     VkPipelineStageFlags pipelineStageFlags =
         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 
@@ -1326,12 +1239,12 @@ int main() {
         .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
         .pNext = NULL,
         .waitSemaphoreCount = 1,
-        .pWaitSemaphores = &acquireImageSemaphoreHandleList[currentFrame],
+        .pWaitSemaphores = &writeImageSemaphoreHandleList[previousFrame],
         .pWaitDstStageMask = &pipelineStageFlags,
         .commandBufferCount = 1,
-        .pCommandBuffers = &commandBufferHandleList[currentImageIndex],
+        .pCommandBuffers = &commandBufferHandleList[currentFrame],
         .signalSemaphoreCount = 1,
-        .pSignalSemaphores = &writeImageSemaphoreHandleList[currentImageIndex]};
+        .pSignalSemaphores = &writeImageSemaphoreHandleList[currentFrame]};
 
     result = vkQueueSubmit(queueHandle, 1, &submitInfo,
                            imageAvailableFenceHandleList[currentFrame]);
@@ -1340,23 +1253,8 @@ int main() {
       throwExceptionVulkanAPI(result, "vkQueueSubmit");
     }
 
-    VkPresentInfoKHR presentInfo = {
-        .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
-        .pNext = NULL,
-        .waitSemaphoreCount = 1,
-        .pWaitSemaphores = &writeImageSemaphoreHandleList[currentImageIndex],
-        .swapchainCount = 1,
-        .pSwapchains = &swapchainHandle,
-        .pImageIndices = &currentImageIndex,
-        .pResults = NULL};
-
-    result = vkQueuePresentKHR(queueHandle, &presentInfo);
-
-    if (result != VK_SUCCESS) {
-      throwExceptionVulkanAPI(result, "vkQueuePresentKHR");
-    }
-
-    currentFrame = (currentFrame + 1) % swapchainImageCount;
+    previousFrame = currentFrame;
+    currentFrame = (currentFrame + 1) % renderPassImageHandleList.size();
   }
 
   // =========================================================================
@@ -1368,11 +1266,15 @@ int main() {
     throwExceptionVulkanAPI(result, "vkDeviceWaitIdle");
   }
 
-  for (uint32_t x = 0; x < swapchainImageCount; x++) {
+  vkDestroyFence(deviceHandle, signalFirstSemaphoreFenceHandle, NULL);
+
+  for (uint32_t x = 0; x < renderPassImageHandleList.size(); x++) {
     vkDestroySemaphore(deviceHandle, writeImageSemaphoreHandleList[x], NULL);
-    vkDestroySemaphore(deviceHandle, acquireImageSemaphoreHandleList[x], NULL);
     vkDestroyFence(deviceHandle, imageAvailableFenceHandleList[x], NULL);
   }
+
+  vkDestroyBuffer(deviceHandle, resultBufferHandle, NULL);
+  vkFreeMemory(deviceHandle, resultDeviceMemoryHandle, NULL);
 
   vkFreeMemory(deviceHandle, uniformDeviceMemoryHandle, NULL);
   vkDestroyBuffer(deviceHandle, uniformBufferHandle, NULL);
@@ -1389,23 +1291,16 @@ int main() {
   vkDestroyDescriptorSetLayout(deviceHandle, descriptorSetLayoutHandle, NULL);
   vkDestroyDescriptorPool(deviceHandle, descriptorPoolHandle, NULL);
 
-  for (uint32_t x = 0; x < swapchainImageCount; x++) {
+  for (uint32_t x = 0; x < renderPassImageHandleList.size(); x++) {
     vkDestroyFramebuffer(deviceHandle, framebufferHandleList[x], NULL);
-    vkDestroyImageView(deviceHandle, swapchainImageViewHandleList[x], NULL);
+    vkDestroyImage(deviceHandle, renderPassImageHandleList[x], NULL);
+    vkDestroyImageView(deviceHandle, renderPassImageViewHandleList[x], NULL);
   }
 
   vkDestroyRenderPass(deviceHandle, renderPassHandle, NULL);
-  vkDestroySwapchainKHR(deviceHandle, swapchainHandle, NULL);
   vkDestroyCommandPool(deviceHandle, commandPoolHandle, NULL);
   vkDestroyDevice(deviceHandle, NULL);
-  vkDestroySurfaceKHR(instanceHandle, surfaceHandle, NULL);
   vkDestroyInstance(instanceHandle, NULL);
 
-#if defined(PLATFORM_LINUX)
-  XCloseDisplay(displayPtr);
-#endif
-
-#if !defined(PLATFORM_ANDROID)
   return 0;
-#endif
 }
