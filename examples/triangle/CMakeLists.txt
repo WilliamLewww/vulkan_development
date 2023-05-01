@@ -84,10 +84,12 @@ elseif(${CMAKE_SYSTEM_NAME} STREQUAL "Android")
       "${CMAKE_BINARY_DIR}/libtriangle.so"
       "${CMAKE_BINARY_DIR}/android/src/main/jniLibs/${CMAKE_ANDROID_ARCH_ABI}/libmain.so")
 
+if(DEFINED VALIDATION_ENABLED)
   add_custom_command(TARGET triangle POST_BUILD
       COMMAND ${CMAKE_COMMAND} -E copy
-      "${VULKAN_LIBRARY_PATH}/libVkLayer_khronos.so"
-      "${CMAKE_BINARY_DIR}/android/src/main/jniLibs/${CMAKE_ANDROID_ARCH_ABI}/libVkLayer_khronos.so")
+      "${VULKAN_LIBRARY_PATH}/libVkLayer_khronos_validation.so"
+      "${CMAKE_BINARY_DIR}/android/src/main/jniLibs/${CMAKE_ANDROID_ARCH_ABI}/libVkLayer_khronos_validation.so")
+endif()
 
   add_custom_command(TARGET triangle
                      COMMAND gradle build 
