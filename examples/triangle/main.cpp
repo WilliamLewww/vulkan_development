@@ -450,6 +450,14 @@ int main() {
       activePhysicalDeviceHandle, surfaceHandle, &surfaceFormatCount,
       surfaceFormatList.data());
 
+  uint32_t selectedFormatIndex = 0;
+  for (uint32_t x = 0; x < surfaceFormatList.size(); x++) {
+    if (surfaceFormatList[x].format == VK_FORMAT_R8G8B8A8_UNORM) {
+      selectedFormatIndex = x;
+      break;
+    }
+  }
+
   if (result != VK_SUCCESS) {
     throwExceptionVulkanAPI(result, "vkGetPhysicalDeviceSurfaceFormatsKHR");
   }
@@ -482,18 +490,23 @@ int main() {
       .flags = 0,
       .surface = surfaceHandle,
       .minImageCount = surfaceCapabilities.minImageCount + 1,
-      .imageFormat = surfaceFormatList[0].format,
-      .imageColorSpace = surfaceFormatList[0].colorSpace,
+      .imageFormat = surfaceFormatList[selectedFormatIndex].format,
+      .imageColorSpace = surfaceFormatList[selectedFormatIndex].colorSpace,
       .imageExtent = surfaceCapabilities.currentExtent,
       .imageArrayLayers = 1,
       .imageUsage =
-          VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+          VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
       .imageSharingMode = VK_SHARING_MODE_EXCLUSIVE,
       .queueFamilyIndexCount = 1,
       .pQueueFamilyIndices = &queueFamilyIndex,
       .preTransform = surfaceCapabilities.currentTransform,
-      .compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
-      .presentMode = presentModeList[0],
+      .compositeAlpha =
+#if defined(PLATFORM_ANDROID)
+          VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR,
+#else
+          VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
+#endif
+      .presentMode = VK_PRESENT_MODE_FIFO_KHR,
       .clipped = VK_TRUE,
       .oldSwapchain = VK_NULL_HANDLE};
 
@@ -510,7 +523,7 @@ int main() {
 
   std::vector<VkAttachmentDescription> attachmentDescriptionList = {
       {.flags = 0,
-       .format = surfaceFormatList[0].format,
+       .format = surfaceFormatList[selectedFormatIndex].format,
        .samples = VK_SAMPLE_COUNT_1_BIT,
        .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
        .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
@@ -583,7 +596,7 @@ int main() {
         .flags = 0,
         .image = swapchainImageHandleList[x],
         .viewType = VK_IMAGE_VIEW_TYPE_2D,
-        .format = surfaceFormatList[0].format,
+        .format = surfaceFormatList[selectedFormatIndex].format,
         .components = {VK_COMPONENT_SWIZZLE_IDENTITY,
                        VK_COMPONENT_SWIZZLE_IDENTITY,
                        VK_COMPONENT_SWIZZLE_IDENTITY,
@@ -815,12 +828,12 @@ int main() {
        .primitiveRestartEnable = VK_FALSE};
 
   VkViewport viewport = {
-      .x = 0,
-      .y = (float)surfaceCapabilities.currentExtent.height,
+      .x = 0.0f,
+      .y = 0.0f,
       .width = (float)surfaceCapabilities.currentExtent.width,
-      .height = -(float)surfaceCapabilities.currentExtent.height,
-      .minDepth = 0,
-      .maxDepth = 1};
+      .height = (float)surfaceCapabilities.currentExtent.height,
+      .minDepth = 0.0f,
+      .maxDepth = 1.0f};
 
   VkRect2D screenRect2D = {.offset = {.x = 0, .y = 0},
                            .extent = surfaceCapabilities.currentExtent};
@@ -871,20 +884,6 @@ int main() {
       .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
                         VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT};
 
-  VkPipelineDepthStencilStateCreateInfo pipelineDepthStencilStateCreateInfo = {
-      .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
-      .pNext = NULL,
-      .flags = 0,
-      .depthTestEnable = VK_TRUE,
-      .depthWriteEnable = VK_TRUE,
-      .depthCompareOp = VK_COMPARE_OP_LESS,
-      .depthBoundsTestEnable = VK_FALSE,
-      .stencilTestEnable = VK_FALSE,
-      .front = {},
-      .back = {},
-      .minDepthBounds = 0.0,
-      .maxDepthBounds = 1.0};
-
   VkPipelineColorBlendStateCreateInfo pipelineColorBlendStateCreateInfo = {
       .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
       .pNext = NULL,
@@ -907,7 +906,7 @@ int main() {
       .pViewportState = &pipelineViewportStateCreateInfo,
       .pRasterizationState = &pipelineRasterizationStateCreateInfo,
       .pMultisampleState = &pipelineMultisampleStateCreateInfo,
-      .pDepthStencilState = &pipelineDepthStencilStateCreateInfo,
+      .pDepthStencilState = NULL,
       .pColorBlendState = &pipelineColorBlendStateCreateInfo,
       .pDynamicState = NULL,
       .layout = pipelineLayoutHandle,
@@ -1194,7 +1193,7 @@ int main() {
     }
 
     std::vector<VkClearValue> clearValueList = {
-        {.color = {0.0f, 0.0f, 0.0f, 1.0f}}, {.depthStencil = {1.0f, 0}}};
+        {.color = {0.0f, 0.0f, 0.0f, 1.0f}}, };
 
     VkRenderPassBeginInfo renderPassBeginInfo = {
         .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
