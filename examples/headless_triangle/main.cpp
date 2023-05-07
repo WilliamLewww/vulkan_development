@@ -5,23 +5,57 @@
 #include <vector>
 #include <cstring>
 
-void throwExceptionVulkanAPI(VkResult result, const std::string& functionName) {
+#if defined(VALIDATION_ENABLED)
+#define STRING_RESET "\033[0m"
+#define STRING_INFO "\033[37m"
+#define STRING_WARNING "\033[33m"
+#define STRING_ERROR "\033[36m"
+
+#define PRINT_MESSAGE(stream, message) stream << message << std::endl;
+
+VkBool32
+debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+              VkDebugUtilsMessageTypeFlagsEXT messageTypes,
+              const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData,
+              void *pUserData) {
+
+  std::string message = pCallbackData->pMessage;
+
+  if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT) {
+    message = STRING_INFO + message + STRING_RESET;
+    PRINT_MESSAGE(std::cout, message.c_str());
+  }
+
+  if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
+    message = STRING_WARNING + message + STRING_RESET;
+    PRINT_MESSAGE(std::cerr, message.c_str());
+  }
+
+  if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) {
+    message = STRING_ERROR + message + STRING_RESET;
+    PRINT_MESSAGE(std::cerr, message.c_str());
+  }
+
+  return VK_FALSE;
+}
+#endif
+
+void throwExceptionVulkanAPI(VkResult result, const std::string &functionName) {
   std::string message = "Vulkan API exception: return code " +
                         std::to_string(result) + " (" + functionName + ")";
 
   throw std::runtime_error(message);
 }
 
-
 std::ifstream getShaderFile(std::string shaderFileName) {
   // relative to binary
-  std::ifstream shaderFile("shaders/headless_triangle_minimal/" +
+  std::ifstream shaderFile("shaders/headless_triangle_validation/" +
                            shaderFileName, std::ios::binary | std::ios::ate);
 
   // install local directory
   if (!shaderFile) {
     std::string shaderPath = std::string(SHARE_PATH) +
-        std::string("/shaders/headless_triangle_minimal/") + shaderFileName;
+        std::string("/shaders/headless_triangle_validation/") + shaderFileName;
 
     shaderFile.open(shaderPath.c_str(), std::ios::binary | std::ios::ate);
   }
@@ -29,7 +63,7 @@ std::ifstream getShaderFile(std::string shaderFileName) {
   // install global directory
   if (!shaderFile) {
     std::string shaderPath = 
-        std::string("/usr/local/share/shaders/headless_triangle_minimal/") +
+        std::string("/usr/local/share/shaders/headless_triangle_validation/") +
         shaderFileName;
 
     shaderFile.open(shaderPath.c_str(), std::ios::binary | std::ios::ate);
@@ -44,6 +78,48 @@ int main() {
   // =========================================================================
   // Vulkan Instance
 
+  VkDebugUtilsMessengerCreateInfoEXT *debugUtilsMessengerCreateInfoPtr = NULL;
+
+#if defined(VALIDATION_ENABLED)
+  std::vector<VkValidationFeatureEnableEXT> validationFeatureEnableList = {
+      // VK_VALIDATION_FEATURE_ENABLE_BEST_PRACTICES_EXT,
+      VK_VALIDATION_FEATURE_ENABLE_DEBUG_PRINTF_EXT,
+      VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT};
+
+  VkDebugUtilsMessageSeverityFlagBitsEXT debugUtilsMessageSeverityFlagBits =
+      (VkDebugUtilsMessageSeverityFlagBitsEXT)(
+          // VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
+          VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT |
+          VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
+          VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT);
+
+  VkDebugUtilsMessageTypeFlagBitsEXT debugUtilsMessageTypeFlagBits =
+      (VkDebugUtilsMessageTypeFlagBitsEXT)(
+          // VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
+          VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
+          VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT);
+
+  VkValidationFeaturesEXT validationFeatures = {
+      .sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT,
+      .pNext = NULL,
+      .enabledValidationFeatureCount =
+          (uint32_t)validationFeatureEnableList.size(),
+      .pEnabledValidationFeatures = validationFeatureEnableList.data(),
+      .disabledValidationFeatureCount = 0,
+      .pDisabledValidationFeatures = NULL};
+
+  VkDebugUtilsMessengerCreateInfoEXT debugUtilsMessengerCreateInfo = {
+      .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
+      .pNext = &validationFeatures,
+      .flags = 0,
+      .messageSeverity = debugUtilsMessageSeverityFlagBits,
+      .messageType = debugUtilsMessageTypeFlagBits,
+      .pfnUserCallback = &debugCallback,
+      .pUserData = NULL};
+
+  debugUtilsMessengerCreateInfoPtr = &debugUtilsMessengerCreateInfo;
+#endif
+
   VkApplicationInfo applicationInfo = {
       .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
       .pNext = NULL,
@@ -54,12 +130,16 @@ int main() {
       .apiVersion = VK_API_VERSION_1_3};
 
   std::vector<const char *> instanceLayerList = {};
-
   std::vector<const char *> instanceExtensionList = {};
+
+#if defined(VALIDATION_ENABLED)
+  instanceLayerList.push_back("VK_LAYER_KHRONOS_validation");
+  instanceExtensionList.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+#endif
 
   VkInstanceCreateInfo instanceCreateInfo = {
       .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
-      .pNext = NULL,
+      .pNext = debugUtilsMessengerCreateInfoPtr,
       .flags = 0,
       .pApplicationInfo = &applicationInfo,
       .enabledLayerCount = (uint32_t)instanceLayerList.size(),

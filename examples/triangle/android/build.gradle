@@ -1,0 +1,55 @@
+buildscript {
+    repositories {
+       google()
+       mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:7.3.1'
+    }
+}
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+apply plugin: 'com.android.application'
+
+android {
+    compileSdk 33
+    ndkVersion '25.1.8937393'
+
+    signingConfigs {
+        release {
+            storeFile file("release.keystore")
+            storePassword "password"
+            keyAlias "alias_name"
+            keyPassword "password"
+        }
+    }
+    
+    defaultConfig {
+        shaders {
+            glslcArgs.addAll(['-c'])
+        }
+        applicationId 'com.android.triangle'
+        minSdk 28
+        targetSdk 33
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled = true
+            proguardFiles getDefaultProguardFile('proguard-android.txt')
+            signingConfig signingConfigs.release
+        }
+    }
+
+    buildFeatures {
+        prefab true
+    }
+    
+    namespace 'com.android.triangle'
+}
