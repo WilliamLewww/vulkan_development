@@ -50,7 +50,7 @@ android {
         shaders {
             glslcArgs.addAll(['-c'])
         }
-        applicationId 'com.android.hellovk'
+        applicationId 'com.android.triangle'
         minSdk 28
         targetSdk 33
     }
@@ -67,5 +67,5 @@ android {
         prefab true
     }
     
-    namespace 'com.android.hellovk'
+    namespace 'com.android.triangle'
 }
