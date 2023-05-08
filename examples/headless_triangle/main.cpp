@@ -13,11 +13,11 @@
 
 #define PRINT_MESSAGE(stream, message) stream << message << std::endl;
 
-VkBool32
-debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-              VkDebugUtilsMessageTypeFlagsEXT messageTypes,
-              const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData,
-              void *pUserData) {
+VkBool32 debugCallback(
+    VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+    VkDebugUtilsMessageTypeFlagsEXT messageTypes,
+    const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData,
+    void *pUserData) {
 
   std::string message = pCallbackData->pMessage;
 
@@ -49,13 +49,13 @@ void throwExceptionVulkanAPI(VkResult result, const std::string &functionName) {
 
 std::ifstream getShaderFile(std::string shaderFileName) {
   // relative to binary
-  std::ifstream shaderFile("shaders/headless_triangle_validation/" +
+  std::ifstream shaderFile("shaders/headless_triangle/" +
                            shaderFileName, std::ios::binary | std::ios::ate);
 
   // install local directory
   if (!shaderFile) {
     std::string shaderPath = std::string(SHARE_PATH) +
-        std::string("/shaders/headless_triangle_validation/") + shaderFileName;
+        std::string("/shaders/headless_triangle/") + shaderFileName;
 
     shaderFile.open(shaderPath.c_str(), std::ios::binary | std::ios::ate);
   }
@@ -63,7 +63,7 @@ std::ifstream getShaderFile(std::string shaderFileName) {
   // install global directory
   if (!shaderFile) {
     std::string shaderPath = 
-        std::string("/usr/local/share/shaders/headless_triangle_validation/") +
+        std::string("/usr/local/share/shaders/headless_triangle/") +
         shaderFileName;
 
     shaderFile.open(shaderPath.c_str(), std::ios::binary | std::ios::ate);
