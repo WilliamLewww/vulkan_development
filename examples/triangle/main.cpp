@@ -25,11 +25,11 @@
 
 #define PRINT_MESSAGE(stream, message) stream << message << std::endl;
 
-VkBool32
-debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-              VkDebugUtilsMessageTypeFlagsEXT messageTypes,
-              const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData,
-              void *pUserData) {
+VkBool32 debugCallback(
+    VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+    VkDebugUtilsMessageTypeFlagsEXT messageTypes,
+    const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData,
+    void *pUserData) {
 
   std::string message = pCallbackData->pMessage;
 
@@ -85,13 +85,13 @@ std::vector<uint32_t> loadShaderFile(
   AAsset_close(asset);
 #else
   // relative to binary
-  std::ifstream shaderFile("shaders/triangle_minimal/" +
+  std::ifstream shaderFile("shaders/triangle/" +
                            shaderFileName, std::ios::binary | std::ios::ate);
 
   // install local directory
   if (!shaderFile) {
     std::string shaderPath = std::string(SHARE_PATH) +
-        std::string("/shaders/triangle_minimal/") + shaderFileName;
+        std::string("/shaders/triangle/") + shaderFileName;
 
     shaderFile.open(shaderPath.c_str(), std::ios::binary | std::ios::ate);
   }
@@ -99,7 +99,7 @@ std::vector<uint32_t> loadShaderFile(
   // install global directory
   if (!shaderFile) {
     std::string shaderPath = 
-        std::string("/usr/local/share/shaders/triangle_minimal/") +
+        std::string("/usr/local/share/shaders/triangle/") +
         shaderFileName;
 
     shaderFile.open(shaderPath.c_str(), std::ios::binary | std::ios::ate);
