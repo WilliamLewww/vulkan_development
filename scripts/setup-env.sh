@@ -1,6 +1,0 @@
-OUT_PATH="${VULKAN_DEVELOPMENT_DIR}/_out/x86_64-linux-gnu"
-
-export VULKAN_SDK="${OUT_PATH}/install"
-export VK_LAYER_PATH="${OUT_PATH}/install/share/vulkan/explicit_layer.d"
-export LD_LIBRARY_PATH="${OUT_PATH}/install/lib"
-export PATH="$PATH:${OUT_PATH}/install/bin"

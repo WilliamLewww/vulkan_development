@@ -314,3 +314,18 @@ then
 
   touch ${OUT_PATH}/log/SPIRV-Reflect.receipt
 fi
+
+if [ ! -f "${OUT_PATH}/log/setup-env.receipt" ]
+then
+  mkdir -p ${OUT_PATH}/install/etc
+
+  rm -f ${OUT_PATH}/install/etc/setup-env.sh
+  touch ${OUT_PATH}/install/etc/setup-env.sh
+
+  echo "export VULKAN_SDK=\"${OUT_PATH}/install\"" >> ${OUT_PATH}/install/etc/setup-env.sh
+  echo "export VK_LAYER_PATH=\"${OUT_PATH}/install/share/vulkan/explicit_layer.d\"" >> ${OUT_PATH}/install/etc/setup-env.sh
+  echo "export LD_LIBRARY_PATH=\"${OUT_PATH}/install/lib\"" >> ${OUT_PATH}/install/etc/setup-env.sh
+  echo "export PATH=\"$PATH:${OUT_PATH}/install/bin\"" >> ${OUT_PATH}/install/etc/setup-env.sh
+
+  touch ${OUT_PATH}/log/setup-env.receipt
+fi
