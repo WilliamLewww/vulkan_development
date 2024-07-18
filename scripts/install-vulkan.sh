@@ -3,11 +3,6 @@ set -e
 
 SCRIPT_PATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
 
-IS_WINDOWS=0
-case "$(uname -s)" in
-  MINGW*) IS_WINDOWS=1;;
-esac
-
 SDK_VERSION='sdk-1.3.243.0'
 THREADS="$( nproc )"
 TOOLCHAIN="x86_64-linux-gnu"
@@ -43,9 +38,10 @@ do
   esac
 done
 
-if [ "${IS_WINDOWS}" == "1" ]
+IS_WINDOWS=0
+if [ "${TOOLCHAIN}" == "x86_64-windows-msvc" ]
 then
-  TOOLCHAIN="x86_64-windows-msvc"
+  IS_WINDOWS=1
 else
   TOOLCHAIN_FILE_PATH="$(dirname ${SCRIPT_PATH})/toolchains/${TOOLCHAIN}.cmake"
   if [ ! -f "${TOOLCHAIN_FILE_PATH}" ]
