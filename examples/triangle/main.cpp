@@ -21,13 +21,13 @@
 #include <vulkan/vulkan_win32.h>
 #endif
 
+#define PRINT_MESSAGE(stream, message) stream << message << std::endl;
+
 #if defined(VALIDATION_ENABLED)
 #define STRING_RESET "\033[0m"
 #define STRING_INFO "\033[37m"
 #define STRING_WARNING "\033[33m"
 #define STRING_ERROR "\033[36m"
-
-#define PRINT_MESSAGE(stream, message) stream << message << std::endl;
 
 VkBool32 debugCallback(
     VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,

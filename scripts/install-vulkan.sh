@@ -30,9 +30,6 @@ do
                    -DBUILD_CUBE=0 \
                    -DBUILD_ICD=0"
     ;;
-    -d|--delete)
-      DELETE=1
-    ;;
     *)
     ;;
   esac
@@ -52,14 +49,6 @@ else
 fi
 
 OUT_PATH="$(dirname $SCRIPT_PATH)/_out/${TOOLCHAIN}"
-
-if [ "${DELETE}" == 1 ]
-then
-  echo "Requesting sudo access to delete existing local repositories:"
-  sudo rm -r -f ${OUT_PATH}/src ${OUT_PATH}/build ${OUT_PATH}/install ${OUT_PATH}/log
-  echo "Local repositories deleted!"
-  exit
-fi
 
 echo "========================================================================="
 echo "SDK Version: ${SDK_VERSION}"

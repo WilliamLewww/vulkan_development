@@ -28,9 +28,6 @@ do
     -ve|--validation-enabled)
       CMAKE_FLAGS="$CMAKE_FLAGS -DVALIDATION_ENABLED=1"
     ;;
-    -d|--delete)
-      DELETE=1
-    ;;
     *)
     ;;
   esac
@@ -51,18 +48,6 @@ fi
 
 OUT_PATH="$(dirname $SCRIPT_PATH)/_out/${TOOLCHAIN}"
 EXAMPLES_PATH="$(dirname $SCRIPT_PATH)/examples"
-
-if [ "${DELETE}" == 1 ]
-then
-  if [ ! -f "${OUT_PATH}/build/${EXAMPLE}/install_manifest.txt" ]
-  then
-    xargs rm < ${OUT_PATH}/build/${EXAMPLE}/install_manifest.txt
-  fi
-  rm -r -f ${OUT_PATH}/build/${EXAMPLE}
-
-  echo "Example has been deleted!"
-  exit
-fi
 
 echo "========================================================================="
 echo "Threads: ${THREADS}"
