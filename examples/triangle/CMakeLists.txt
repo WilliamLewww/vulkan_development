@@ -5,26 +5,11 @@ find_package(Vulkan REQUIRED)
 
 if(DEFINED VALIDATION_ENABLED)
   add_compile_definitions(VALIDATION_ENABLED=1)
-
-  get_filename_component(VULKAN_LIBRARY_PATH ${Vulkan_LIBRARY} DIRECTORY)
-  if(NOT EXISTS "${VULKAN_LIBRARY_PATH}/libVkLayer_khronos_validation.so")
-    message(FATAL_ERROR "Could not find libVkLayer_khronos_validation.so")
-  endif()
 endif()
 
 add_compile_definitions(SHARE_PATH="${CMAKE_INSTALL_PREFIX}/share")
 
-if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
-  if(DEFINED GLSLANG_VALIDATOR_EXECUTABLE)
-    set(Vulkan_GLSLANG_VALIDATOR_EXECUTABLE ${GLSLANG_VALIDATOR_EXECUTABLE})
-  endif()
-
-  add_executable(triangle main.cpp)
-  add_compile_definitions(PLATFORM_LINUX=1)
-
-  find_package(X11)
-  target_link_libraries(triangle X11)
-elseif(${CMAKE_SYSTEM_NAME} STREQUAL "Android")
+if(${CMAKE_SYSTEM_NAME} STREQUAL "Android")
   add_library(triangle SHARED main.cpp)
   target_link_libraries(triangle log)
   target_link_libraries(triangle android)
@@ -38,12 +23,57 @@ elseif(${CMAKE_SYSTEM_NAME} STREQUAL "Android")
       "${CMAKE_SHARED_LINKER_FLAGS} -u ANativeActivity_onCreate")
 
   target_link_libraries(triangle native_app_glue)
+else()
+  if(DEFINED GLSLANG_VALIDATOR_EXECUTABLE)
+    set(Vulkan_GLSLANG_VALIDATOR_EXECUTABLE ${GLSLANG_VALIDATOR_EXECUTABLE})
+  endif()
+
+  if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
+    add_executable(triangle main.cpp)
+    set_property(TARGET triangle PROPERTY CXX_STANDARD 20)
+    add_compile_definitions(PLATFORM_LINUX=1)
+
+    find_package(X11)
+    target_link_libraries(triangle X11)
+  elseif(${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
+    add_executable(triangle WIN32 main.cpp)
+    set_property(TARGET triangle PROPERTY CXX_STANDARD 20)
+    add_compile_definitions(PLATFORM_WINDOWS=1)
+  endif()
 endif()
 
 include_directories(triangle ${Vulkan_INCLUDE_DIRS})
 target_link_libraries(triangle ${Vulkan_LIBRARIES})
 
-if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
+if(${CMAKE_SYSTEM_NAME} STREQUAL "Android")
+  add_custom_command(TARGET triangle POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy_directory
+      "${CMAKE_SOURCE_DIR}/android" "${CMAKE_BINARY_DIR}/android")
+
+  configure_file("${CMAKE_SOURCE_DIR}/shader.vert"
+                 "${CMAKE_BINARY_DIR}/android/src/main/shaders/shader.vert")
+
+  configure_file("${CMAKE_SOURCE_DIR}/shader.frag"
+                 "${CMAKE_BINARY_DIR}/android/src/main/shaders/shader.frag")
+
+  add_custom_command(TARGET triangle POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy
+      "${CMAKE_BINARY_DIR}/libtriangle.so"
+      "${CMAKE_BINARY_DIR}/android/src/main/jniLibs/${CMAKE_ANDROID_ARCH_ABI}/libmain.so")
+
+  if(DEFINED VALIDATION_ENABLED)
+    add_custom_command(TARGET triangle POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy
+        "${VULKAN_LIBRARY_PATH}/libVkLayer_khronos_validation.so"
+        "${CMAKE_BINARY_DIR}/android/src/main/jniLibs/${CMAKE_ANDROID_ARCH_ABI}/libVkLayer_khronos_validation.so")
+  endif()
+
+  add_custom_command(TARGET triangle
+                     COMMAND gradle build 
+                     WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/android")
+
+  install(DIRECTORY ${CMAKE_BINARY_DIR}/android/build/outputs/apk DESTINATION ${CMAKE_INSTALL_PREFIX})
+else()
   file(GLOB SHADERS 
     "shader.vert" 
     "shader.frag")
@@ -68,32 +98,4 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
   
   install(DIRECTORY ${CMAKE_BINARY_DIR}/shaders DESTINATION share)
   install(TARGETS triangle DESTINATION bin)
-elseif(${CMAKE_SYSTEM_NAME} STREQUAL "Android")
-  add_custom_command(TARGET triangle POST_BUILD
-      COMMAND ${CMAKE_COMMAND} -E copy_directory
-      "${CMAKE_SOURCE_DIR}/android" "${CMAKE_BINARY_DIR}/android")
-
-  configure_file("${CMAKE_SOURCE_DIR}/shader.vert"
-                 "${CMAKE_BINARY_DIR}/android/src/main/shaders/shader.vert")
-
-  configure_file("${CMAKE_SOURCE_DIR}/shader.frag"
-                 "${CMAKE_BINARY_DIR}/android/src/main/shaders/shader.frag")
-
-  add_custom_command(TARGET triangle POST_BUILD
-      COMMAND ${CMAKE_COMMAND} -E copy
-      "${CMAKE_BINARY_DIR}/libtriangle.so"
-      "${CMAKE_BINARY_DIR}/android/src/main/jniLibs/${CMAKE_ANDROID_ARCH_ABI}/libmain.so")
-
-if(DEFINED VALIDATION_ENABLED)
-  add_custom_command(TARGET triangle POST_BUILD
-      COMMAND ${CMAKE_COMMAND} -E copy
-      "${VULKAN_LIBRARY_PATH}/libVkLayer_khronos_validation.so"
-      "${CMAKE_BINARY_DIR}/android/src/main/jniLibs/${CMAKE_ANDROID_ARCH_ABI}/libVkLayer_khronos_validation.so")
-endif()
-
-  add_custom_command(TARGET triangle
-                     COMMAND gradle build 
-                     WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/android")
-
-  install(DIRECTORY ${CMAKE_BINARY_DIR}/android/build/outputs/apk DESTINATION ${CMAKE_INSTALL_PREFIX})
 endif()

@@ -324,9 +324,9 @@ then
 
   if [ "${IS_WINDOWS}" == "1" ]
   then
-    echo "export VK_LAYER_PATH=\"${OUT_PATH}/install/bin"" >> ${OUT_PATH}/install/etc/setup-env.sh
+    echo "export VK_LAYER_PATH=\"${OUT_PATH}/install/bin\"" >> ${OUT_PATH}/install/etc/setup-env.sh
   else
-    echo "export VK_LAYER_PATH=\"${OUT_PATH}/install/share/vulkan/explicit_layer.d"" >> ${OUT_PATH}/install/etc/setup-env.sh
+    echo "export VK_LAYER_PATH=\"${OUT_PATH}/install/share/vulkan/explicit_layer.d\"" >> ${OUT_PATH}/install/etc/setup-env.sh
   fi
 
   touch ${OUT_PATH}/log/setup-env.receipt

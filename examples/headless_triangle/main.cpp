@@ -45,7 +45,7 @@ void throwExceptionVulkanAPI(VkResult result, const std::string &functionName) {
                         std::to_string(result) + " (" + functionName + ")";
 
 #if (WIN32)
-  std::cout << message << std::endl;
+  PRINT_MESSAGE(std::cerr, message);
 #endif
 
   throw std::runtime_error(message);
