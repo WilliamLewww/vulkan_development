@@ -28,35 +28,26 @@ do
     -ve|--validation-enabled)
       CMAKE_FLAGS="$CMAKE_FLAGS -DVALIDATION_ENABLED=1"
     ;;
-    -d|--delete)
-      DELETE=1
-    ;;
     *)
     ;;
   esac
 done
 
-TOOLCHAIN_FILE_PATH="$(dirname ${SCRIPT_PATH})/toolchains/${TOOLCHAIN}.cmake"
-if [ ! -f "${TOOLCHAIN_FILE_PATH}" ]
+IS_WINDOWS=0
+if [ "${TOOLCHAIN}" == "x86_64-windows-msvc" ]
 then
-  echo "Unsupported Toolchain"
-  exit
+  IS_WINDOWS=1
+else
+  TOOLCHAIN_FILE_PATH="$(dirname ${SCRIPT_PATH})/toolchains/${TOOLCHAIN}.cmake"
+  if [ ! -f "${TOOLCHAIN_FILE_PATH}" ]
+  then
+    echo "Unsupported Toolchain"
+    exit
+  fi
 fi
 
 OUT_PATH="$(dirname $SCRIPT_PATH)/_out/${TOOLCHAIN}"
 EXAMPLES_PATH="$(dirname $SCRIPT_PATH)/examples"
-
-if [ "${DELETE}" == 1 ]
-then
-  if [ ! -f "${OUT_PATH}/build/${EXAMPLE}/install_manifest.txt" ]
-  then
-    xargs rm < ${OUT_PATH}/build/${EXAMPLE}/install_manifest.txt
-  fi
-  rm -r -f ${OUT_PATH}/build/${EXAMPLE}
-
-  echo "Example has been deleted!"
-  exit
-fi
 
 echo "========================================================================="
 echo "Threads: ${THREADS}"
@@ -75,7 +66,13 @@ then
       -DCMAKE_INSTALL_PREFIX=${OUT_PATH}/install \
       -DCMAKE_TOOLCHAIN_FILE=${TOOLCHAIN_FILE_PATH} \
       ${CMAKE_FLAGS}
-  make install -j${THREADS} -C ${OUT_PATH}/build/${EXAMPLE}
+
+  if [ "${IS_WINDOWS}" == "1" ]
+  then
+    cmake --build ${OUT_PATH}/build/${EXAMPLE} -j${THREADS} --target install
+  else
+    make install -j${THREADS} -C ${OUT_PATH}/build/${EXAMPLE}
+  fi
 else
   echo "Examples"
   echo "  triangle"

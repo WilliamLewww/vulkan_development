@@ -5,11 +5,6 @@ find_package(Vulkan REQUIRED)
 
 if(DEFINED VALIDATION_ENABLED)
   add_compile_definitions(VALIDATION_ENABLED=1)
-
-  get_filename_component(VULKAN_LIBRARY_PATH ${Vulkan_LIBRARY} DIRECTORY)
-  if(NOT EXISTS "${VULKAN_LIBRARY_PATH}/libVkLayer_khronos_validation.so")
-    message(FATAL_ERROR "Could not find libVkLayer_khronos_validation.so")
-  endif()
 endif()
 
 if(DEFINED GLSLANG_VALIDATOR_EXECUTABLE)
@@ -21,6 +16,7 @@ add_compile_definitions(SHARE_PATH="${CMAKE_INSTALL_PREFIX}/share")
 add_executable(headless_triangle main.cpp)
 include_directories(headless_triangle ${Vulkan_INCLUDE_DIRS})
 target_link_libraries(headless_triangle ${Vulkan_LIBRARIES})
+set_property(TARGET headless_triangle PROPERTY CXX_STANDARD 20)
 
 file(GLOB SHADERS 
   "shader.vert" 

@@ -30,30 +30,25 @@ do
                    -DBUILD_CUBE=0 \
                    -DBUILD_ICD=0"
     ;;
-    -d|--delete)
-      DELETE=1
-    ;;
     *)
     ;;
   esac
 done
 
-TOOLCHAIN_FILE_PATH="$(dirname ${SCRIPT_PATH})/toolchains/${TOOLCHAIN}.cmake"
-if [ ! -f "${TOOLCHAIN_FILE_PATH}" ]
+IS_WINDOWS=0
+if [ "${TOOLCHAIN}" == "x86_64-windows-msvc" ]
 then
-  echo "Unsupported Toolchain"
-  exit
+  IS_WINDOWS=1
+else
+  TOOLCHAIN_FILE_PATH="$(dirname ${SCRIPT_PATH})/toolchains/${TOOLCHAIN}.cmake"
+  if [ ! -f "${TOOLCHAIN_FILE_PATH}" ]
+  then
+    echo "Unsupported Toolchain"
+    exit
+  fi
 fi
 
 OUT_PATH="$(dirname $SCRIPT_PATH)/_out/${TOOLCHAIN}"
-
-if [ "${DELETE}" == 1 ]
-then
-  echo "Requesting sudo access to delete existing local repositories:"
-  sudo rm -r -f ${OUT_PATH}/src ${OUT_PATH}/build ${OUT_PATH}/install ${OUT_PATH}/log
-  echo "Local repositories deleted!"
-  exit
-fi
 
 echo "========================================================================="
 echo "SDK Version: ${SDK_VERSION}"
@@ -88,7 +83,13 @@ then
       -DCMAKE_INSTALL_PREFIX=${OUT_PATH}/install \
       -DCMAKE_TOOLCHAIN_FILE=${TOOLCHAIN_FILE_PATH} \
       ${CMAKE_FLAGS}
-  make install -j${THREADS} -C ${OUT_PATH}/build/Vulkan-Headers
+
+  if [ "${IS_WINDOWS}" == "1" ]
+  then
+    cmake --build ${OUT_PATH}/build/Vulkan-Headers -j${THREADS} --target install
+  else
+    make install -j${THREADS} -C ${OUT_PATH}/build/Vulkan-Headers
+  fi
 
   touch ${OUT_PATH}/log/Vulkan-Headers.receipt
 fi
@@ -108,7 +109,13 @@ then
       -DCMAKE_INSTALL_PREFIX=${OUT_PATH}/install \
       -DCMAKE_TOOLCHAIN_FILE=${TOOLCHAIN_FILE_PATH} \
       ${CMAKE_FLAGS}
-  make install -j${THREADS} -C ${OUT_PATH}/build/Vulkan-Loader
+
+  if [ "${IS_WINDOWS}" == "1" ]
+  then
+    cmake --build ${OUT_PATH}/build/Vulkan-Loader -j${THREADS} --target install
+  else
+    make install -j${THREADS} -C ${OUT_PATH}/build/Vulkan-Loader
+  fi
 
   touch ${OUT_PATH}/log/Vulkan-Loader.receipt
 fi
@@ -123,14 +130,18 @@ then
 
   git --git-dir=${OUT_PATH}/src/glslang/.git --work-tree=${OUT_PATH}/src/glslang checkout ${SDK_VERSION}
 
-  ln -sF ${OUT_PATH}/src/SPIRV-Tools ${OUT_PATH}/src/glslang/External/spirv-tools
-
   cmake -H${OUT_PATH}/src/glslang -B${OUT_PATH}/build/glslang \
       -DCMAKE_PREFIX_PATH=${OUT_PATH}/install \
       -DCMAKE_INSTALL_PREFIX=${OUT_PATH}/install \
       -DCMAKE_TOOLCHAIN_FILE=${TOOLCHAIN_FILE_PATH} \
       ${CMAKE_FLAGS}
-  make install -j${THREADS} -C ${OUT_PATH}/build/glslang
+
+  if [ "${IS_WINDOWS}" == "1" ]
+  then
+    cmake --build ${OUT_PATH}/build/glslang -j${THREADS} --target install
+  else
+    make install -j${THREADS} -C ${OUT_PATH}/build/glslang
+  fi
 
   touch ${OUT_PATH}/log/glslang.receipt
 fi
@@ -149,7 +160,13 @@ then
       -DCMAKE_INSTALL_PREFIX=${OUT_PATH}/install \
       -DCMAKE_TOOLCHAIN_FILE=${TOOLCHAIN_FILE_PATH} \
       ${CMAKE_FLAGS}
-  make install -j${THREADS} -C ${OUT_PATH}/build/Vulkan-Tools
+
+  if [ "${IS_WINDOWS}" == "1" ]
+  then
+    cmake --build ${OUT_PATH}/build/Vulkan-Tools -j${THREADS} --target install
+  else
+    make install -j${THREADS} -C ${OUT_PATH}/build/Vulkan-Tools
+  fi
 
   touch ${OUT_PATH}/log/Vulkan-Tools.receipt
 fi
@@ -169,7 +186,13 @@ then
       -DCMAKE_INSTALL_PREFIX=${OUT_PATH}/install \
       -DCMAKE_TOOLCHAIN_FILE=${TOOLCHAIN_FILE_PATH} \
       ${CMAKE_FLAGS}
-  make install -j${THREADS} -C ${OUT_PATH}/build/SPIRV-Headers
+
+  if [ "${IS_WINDOWS}" == "1" ]
+  then
+    cmake --build ${OUT_PATH}/build/SPIRV-Headers -j${THREADS} --target install
+  else
+    make install -j${THREADS} -C ${OUT_PATH}/build/SPIRV-Headers
+  fi
 
   touch ${OUT_PATH}/log/SPIRV-Headers.receipt
 fi
@@ -191,7 +214,13 @@ then
       -DCMAKE_INSTALL_PREFIX=${OUT_PATH}/install \
       -DCMAKE_TOOLCHAIN_FILE=${TOOLCHAIN_FILE_PATH} \
       ${CMAKE_FLAGS}
-  make install -j${THREADS} -C ${OUT_PATH}/build/SPIRV-Tools
+
+  if [ "${IS_WINDOWS}" == "1" ]
+  then
+    cmake --build ${OUT_PATH}/build/SPIRV-Tools -j${THREADS} --target install
+  else
+    make install -j${THREADS} -C ${OUT_PATH}/build/SPIRV-Tools
+  fi
 
   touch ${OUT_PATH}/log/SPIRV-Tools.receipt
 fi
@@ -212,7 +241,13 @@ then
       -DCMAKE_INSTALL_PREFIX=${OUT_PATH}/install \
       -DCMAKE_TOOLCHAIN_FILE=${TOOLCHAIN_FILE_PATH} \
       ${CMAKE_FLAGS}
-  make install -j${THREADS} -C ${OUT_PATH}/build/Vulkan-ValidationLayers
+
+  if [ "${IS_WINDOWS}" == "1" ]
+  then
+    cmake --build ${OUT_PATH}/build/Vulkan-ValidationLayers -j${THREADS} --target install
+  else
+    make install -j${THREADS} -C ${OUT_PATH}/build/Vulkan-ValidationLayers
+  fi
 
   touch ${OUT_PATH}/log/Vulkan-ValidationLayers.receipt
 fi
@@ -230,7 +265,13 @@ then
       -DCMAKE_INSTALL_PREFIX=${OUT_PATH}/install \
       -DCMAKE_TOOLCHAIN_FILE=${TOOLCHAIN_FILE_PATH} \
       ${CMAKE_FLAGS}
-  make install -j${THREADS} -C ${OUT_PATH}/build/SPIRV-Cross
+
+  if [ "${IS_WINDOWS}" == "1" ]
+  then
+    cmake --build ${OUT_PATH}/build/SPIRV-Cross -j${THREADS} --target install
+  else
+    make install -j${THREADS} -C ${OUT_PATH}/build/SPIRV-Cross
+  fi
 
   touch ${OUT_PATH}/log/SPIRV-Cross.receipt
 fi
@@ -248,7 +289,34 @@ then
       -DCMAKE_INSTALL_PREFIX=${OUT_PATH}/install \
       -DCMAKE_TOOLCHAIN_FILE=${TOOLCHAIN_FILE_PATH} \
       ${CMAKE_FLAGS}
-  make install -j${THREADS} -C ${OUT_PATH}/build/SPIRV-Reflect
+
+  if [ "${IS_WINDOWS}" == "1" ]
+  then
+    cmake --build ${OUT_PATH}/build/SPIRV-Reflect -j${THREADS} --target install
+  else
+    make install -j${THREADS} -C ${OUT_PATH}/build/SPIRV-Reflect
+  fi
 
   touch ${OUT_PATH}/log/SPIRV-Reflect.receipt
+fi
+
+if [ ! -f "${OUT_PATH}/log/setup-env.receipt" ]
+then
+  mkdir -p ${OUT_PATH}/install/etc
+
+  rm -f ${OUT_PATH}/install/etc/setup-env.sh
+  touch ${OUT_PATH}/install/etc/setup-env.sh
+
+  echo "export VULKAN_SDK=\"${OUT_PATH}/install\"" >> ${OUT_PATH}/install/etc/setup-env.sh
+  echo "export LD_LIBRARY_PATH=\"${OUT_PATH}/install/lib\"" >> ${OUT_PATH}/install/etc/setup-env.sh
+  echo "export PATH=\"$PATH:${OUT_PATH}/install/bin\"" >> ${OUT_PATH}/install/etc/setup-env.sh
+
+  if [ "${IS_WINDOWS}" == "1" ]
+  then
+    echo "export VK_LAYER_PATH=\"${OUT_PATH}/install/bin\"" >> ${OUT_PATH}/install/etc/setup-env.sh
+  else
+    echo "export VK_LAYER_PATH=\"${OUT_PATH}/install/share/vulkan/explicit_layer.d\"" >> ${OUT_PATH}/install/etc/setup-env.sh
+  fi
+
+  touch ${OUT_PATH}/log/setup-env.receipt
 fi

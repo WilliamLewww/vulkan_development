@@ -4,6 +4,7 @@
 #include <iostream>
 #include <vector>
 #include <cstring>
+#include <string>
 
 #if defined(PLATFORM_LINUX)
 #include <X11/Xlib.h>
@@ -15,15 +16,18 @@
 #include <android/looper.h>
 #include <android_native_app_glue.h>
 #include <vulkan/vulkan_android.h>
+#elif defined(PLATFORM_WINDOWS)
+#include <windows.h>
+#include <vulkan/vulkan_win32.h>
 #endif
+
+#define PRINT_MESSAGE(stream, message) stream << message << std::endl;
 
 #if defined(VALIDATION_ENABLED)
 #define STRING_RESET "\033[0m"
 #define STRING_INFO "\033[37m"
 #define STRING_WARNING "\033[33m"
 #define STRING_ERROR "\033[36m"
-
-#define PRINT_MESSAGE(stream, message) stream << message << std::endl;
 
 VkBool32 debugCallback(
     VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -65,6 +69,9 @@ void throwExceptionVulkanAPI(VkResult result, const std::string& functionName) {
   __android_log_print(ANDROID_LOG_ERROR, "[vulkan_development]", "%s",
       message.c_str());
 #else
+#if defined(PLATFORM_WINDOWS)
+  PRINT_MESSAGE(std::cerr, message);
+#endif
   throw std::runtime_error(message);
 #endif
 }
@@ -129,6 +136,23 @@ static void handleAppCmd(struct android_app *appPtr, int32_t cmd) {
 }
 
 void android_main(struct android_app *appPtr) {
+#elif defined(PLATFORM_WINDOWS)
+bool exitWindow = false;
+
+LRESULT CALLBACK WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+{
+  if (uMsg == WM_CLOSE) {
+    exitWindow = true;
+  }
+  else {
+    return (DefWindowProc(hWnd, uMsg, wParam, lParam));
+  }
+}
+
+_Use_decl_annotations_ int APIENTRY WinMain(HINSTANCE hInstance,
+                                            HINSTANCE hPrevInstance,
+                                            LPSTR pCmdLine,
+                                            int nCmdShow) {
 #else
 int main() {
 #endif
@@ -141,12 +165,12 @@ int main() {
   Display *displayPtr = XOpenDisplay(NULL);
   int screen = DefaultScreen(displayPtr);
 
-  Window window = XCreateSimpleWindow(
+  Window windowLinux = XCreateSimpleWindow(
       displayPtr, RootWindow(displayPtr, screen), 10, 10, 100, 100, 1,
       BlackPixel(displayPtr, screen), WhitePixel(displayPtr, screen));
 
-  XSelectInput(displayPtr, window, ExposureMask | KeyPressMask);
-  XMapWindow(displayPtr, window);
+  XSelectInput(displayPtr, windowLinux, ExposureMask | KeyPressMask);
+  XMapWindow(displayPtr, windowLinux);
 #elif defined(PLATFORM_ANDROID)
   appPtr->onAppCmd = handleAppCmd;
  
@@ -162,7 +186,35 @@ int main() {
     };
   }
 
-  ANativeWindow* windowPtr = appPtr->window;
+  ANativeWindow* windowAndroid = appPtr->window;
+#elif defined(PLATFORM_WINDOWS)
+  WNDCLASS wc = {
+    .lpfnWndProc = WindowProc,
+    .hInstance = hInstance,
+    .lpszClassName = "WINDOW_CLASS"};
+
+  if (!RegisterClass(&wc)) {
+    throwExceptionVulkanAPI((VkResult)0, "RegisterClass");
+  }
+
+  HWND windowWindows = CreateWindowEx(
+      0,
+      "WINDOW_CLASS",
+      "Triangle",
+      WS_OVERLAPPEDWINDOW | WS_CLIPSIBLINGS | WS_CLIPCHILDREN,
+      0, 0, 800, 600,
+      NULL,
+      NULL,
+      hInstance,
+      NULL);
+
+  if (!windowWindows) {
+    throwExceptionVulkanAPI((VkResult)0, "CreateWindowEx");
+  }
+
+  ShowWindow(windowWindows, SW_SHOW);
+  SetForegroundWindow(windowWindows);
+  SetFocus(windowWindows);
 #endif
 
   // =========================================================================
@@ -202,8 +254,10 @@ int main() {
       .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
       .pNext = &validationFeatures,
       .flags = 0,
-      .messageSeverity = debugUtilsMessageSeverityFlagBits,
-      .messageType = debugUtilsMessageTypeFlagBits,
+      .messageSeverity =
+          (VkDebugUtilsMessageSeverityFlagsEXT)debugUtilsMessageSeverityFlagBits,
+      .messageType =
+          (VkDebugUtilsMessageTypeFlagsEXT)debugUtilsMessageTypeFlagBits,
       .pfnUserCallback = &debugCallback,
       .pUserData = NULL};
 
@@ -213,7 +267,7 @@ int main() {
   VkApplicationInfo applicationInfo = {
       .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
       .pNext = NULL,
-      .pApplicationName = "Headless Triangle",
+      .pApplicationName = "Triangle",
       .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
       .pEngineName = "",
       .engineVersion = VK_MAKE_VERSION(1, 0, 0),
@@ -226,6 +280,8 @@ int main() {
       "VK_KHR_xlib_surface",
 #elif defined(PLATFORM_ANDROID)
       "VK_KHR_android_surface",
+#elif defined(PLATFORM_WINDOWS)
+      "VK_KHR_win32_surface",
 #endif
       "VK_KHR_surface"};
 
@@ -263,21 +319,44 @@ int main() {
     .pNext = NULL,
     .flags = 0,
     .dpy = displayPtr,
-    .window = window
+    .window = windowLinux
   };
 
   result = vkCreateXlibSurfaceKHR(instanceHandle, &xlibSurfaceCreateInfo, NULL,
                                   &surfaceHandle);
+
+  if (result != VK_SUCCESS) {
+    throwExceptionVulkanAPI(result, "vkCreateXlibSurfaceKHR");
+  }
 #elif defined(PLATFORM_ANDROID)
   VkAndroidSurfaceCreateInfoKHR androidSurfaceCreateInfo = {
     .sType = VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR,
     .pNext = NULL,
     .flags = 0,
-    .window = windowPtr
+    .window = windowAndroid
   };
 
   result = vkCreateAndroidSurfaceKHR(instanceHandle, &androidSurfaceCreateInfo,
                                      NULL, &surfaceHandle);
+
+  if (result != VK_SUCCESS) {
+    throwExceptionVulkanAPI(result, "vkCreateAndroidSurfaceKHR");
+  }
+#elif defined(PLATFORM_WINDOWS)
+  VkWin32SurfaceCreateInfoKHR windowsSurfaceCreateInfo {
+      .sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR,
+      .pNext = NULL,
+      .flags = 0,
+      .hinstance = hInstance,
+      .hwnd = windowWindows
+  };
+
+  result = vkCreateWin32SurfaceKHR(instanceHandle, &windowsSurfaceCreateInfo,
+                                   NULL, &surfaceHandle);
+
+  if (result != VK_SUCCESS) {
+    throwExceptionVulkanAPI(result, "vkCreateWin32SurfaceKHR");
+  }
 #endif
 
   // =========================================================================
@@ -1237,13 +1316,13 @@ int main() {
   // =========================================================================
   // Fences, Semaphores
 
-  std::vector<VkFence> imageAvailableFenceHandleList(swapchainImageCount,
+  std::vector<VkFence> inFlightFenceHandleList(swapchainImageCount,
                                                      VK_NULL_HANDLE);
 
-  std::vector<VkSemaphore> acquireImageSemaphoreHandleList(swapchainImageCount,
+  std::vector<VkSemaphore> imageAvailableSemaphoreHandleList(swapchainImageCount,
                                                            VK_NULL_HANDLE);
 
-  std::vector<VkSemaphore> writeImageSemaphoreHandleList(swapchainImageCount,
+  std::vector<VkSemaphore> renderFinishedSemaphoreHandleList(swapchainImageCount,
                                                          VK_NULL_HANDLE);
 
   for (uint32_t x = 0; x < swapchainImageCount; x++) {
@@ -1253,7 +1332,7 @@ int main() {
         .flags = VK_FENCE_CREATE_SIGNALED_BIT};
 
     result = vkCreateFence(deviceHandle, &imageAvailableFenceCreateInfo, NULL,
-                           &imageAvailableFenceHandleList[x]);
+                           &inFlightFenceHandleList[x]);
 
     if (result != VK_SUCCESS) {
       throwExceptionVulkanAPI(result, "vkCreateFence");
@@ -1265,7 +1344,7 @@ int main() {
         .flags = 0};
 
     result = vkCreateSemaphore(deviceHandle, &acquireImageSemaphoreCreateInfo,
-                               NULL, &acquireImageSemaphoreHandleList[x]);
+                               NULL, &imageAvailableSemaphoreHandleList[x]);
 
     if (result != VK_SUCCESS) {
       throwExceptionVulkanAPI(result, "vkCreateSemaphore");
@@ -1277,7 +1356,7 @@ int main() {
         .flags = 0};
 
     result = vkCreateSemaphore(deviceHandle, &writeImageSemaphoreCreateInfo,
-                               NULL, &writeImageSemaphoreHandleList[x]);
+                               NULL, &renderFinishedSemaphoreHandleList[x]);
 
     if (result != VK_SUCCESS) {
       throwExceptionVulkanAPI(result, "vkCreateSemaphore");
@@ -1288,7 +1367,6 @@ int main() {
   // Main Loop
 
   uint32_t currentFrame = 0;
-
   while (true) {
 #if defined(PLATFORM_LINUX)
     XEvent event;
@@ -1303,10 +1381,19 @@ int main() {
         sourcePtr->process(appPtr, sourcePtr);
       }
     };
+#elif defined(PLATFORM_WINDOWS)
+    MSG msg;
+    PeekMessage(&msg, NULL, 0, 0, PM_REMOVE);
+    TranslateMessage(&msg);
+    DispatchMessage(&msg);
+
+    if (exitWindow) {
+      break;
+    }
 #endif
 
     result = vkWaitForFences(deviceHandle, 1,
-                             &imageAvailableFenceHandleList[currentFrame], true,
+                             &inFlightFenceHandleList[currentFrame], true,
                              UINT32_MAX);
 
     if (result != VK_SUCCESS && result != VK_TIMEOUT) {
@@ -1314,7 +1401,7 @@ int main() {
     }
 
     result = vkResetFences(deviceHandle, 1,
-                           &imageAvailableFenceHandleList[currentFrame]);
+                           &inFlightFenceHandleList[currentFrame]);
 
     if (result != VK_SUCCESS) {
       throwExceptionVulkanAPI(result, "vkResetFences");
@@ -1323,7 +1410,7 @@ int main() {
     uint32_t currentImageIndex = -1;
     result =
         vkAcquireNextImageKHR(deviceHandle, swapchainHandle, UINT32_MAX,
-                              acquireImageSemaphoreHandleList[currentFrame],
+                              imageAvailableSemaphoreHandleList[currentFrame],
                               VK_NULL_HANDLE, &currentImageIndex);
 
     if (result != VK_SUCCESS) {
@@ -1337,15 +1424,15 @@ int main() {
         .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
         .pNext = NULL,
         .waitSemaphoreCount = 1,
-        .pWaitSemaphores = &acquireImageSemaphoreHandleList[currentFrame],
+        .pWaitSemaphores = &imageAvailableSemaphoreHandleList[currentFrame],
         .pWaitDstStageMask = &pipelineStageFlags,
         .commandBufferCount = 1,
-        .pCommandBuffers = &commandBufferHandleList[currentImageIndex],
+        .pCommandBuffers = &commandBufferHandleList[currentFrame],
         .signalSemaphoreCount = 1,
-        .pSignalSemaphores = &writeImageSemaphoreHandleList[currentImageIndex]};
+        .pSignalSemaphores = &renderFinishedSemaphoreHandleList[currentFrame]};
 
     result = vkQueueSubmit(queueHandle, 1, &submitInfo,
-                           imageAvailableFenceHandleList[currentFrame]);
+                           inFlightFenceHandleList[currentFrame]);
 
     if (result != VK_SUCCESS) {
       throwExceptionVulkanAPI(result, "vkQueueSubmit");
@@ -1355,7 +1442,7 @@ int main() {
         .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
         .pNext = NULL,
         .waitSemaphoreCount = 1,
-        .pWaitSemaphores = &writeImageSemaphoreHandleList[currentImageIndex],
+        .pWaitSemaphores = &renderFinishedSemaphoreHandleList[currentFrame],
         .swapchainCount = 1,
         .pSwapchains = &swapchainHandle,
         .pImageIndices = &currentImageIndex,
@@ -1380,9 +1467,9 @@ int main() {
   }
 
   for (uint32_t x = 0; x < swapchainImageCount; x++) {
-    vkDestroySemaphore(deviceHandle, writeImageSemaphoreHandleList[x], NULL);
-    vkDestroySemaphore(deviceHandle, acquireImageSemaphoreHandleList[x], NULL);
-    vkDestroyFence(deviceHandle, imageAvailableFenceHandleList[x], NULL);
+    vkDestroySemaphore(deviceHandle, renderFinishedSemaphoreHandleList[x], NULL);
+    vkDestroySemaphore(deviceHandle, imageAvailableSemaphoreHandleList[x], NULL);
+    vkDestroyFence(deviceHandle, inFlightFenceHandleList[x], NULL);
   }
 
   vkFreeMemory(deviceHandle, uniformDeviceMemoryHandle, NULL);

@@ -4,14 +4,15 @@
 #include <iostream>
 #include <vector>
 #include <cstring>
+#include <string>
+
+#define PRINT_MESSAGE(stream, message) stream << message << std::endl;
 
 #if defined(VALIDATION_ENABLED)
 #define STRING_RESET "\033[0m"
 #define STRING_INFO "\033[37m"
 #define STRING_WARNING "\033[33m"
 #define STRING_ERROR "\033[36m"
-
-#define PRINT_MESSAGE(stream, message) stream << message << std::endl;
 
 VkBool32 debugCallback(
     VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -43,6 +44,10 @@ VkBool32 debugCallback(
 void throwExceptionVulkanAPI(VkResult result, const std::string &functionName) {
   std::string message = "Vulkan API exception: return code " +
                         std::to_string(result) + " (" + functionName + ")";
+
+#if (WIN32)
+  PRINT_MESSAGE(std::cerr, message);
+#endif
 
   throw std::runtime_error(message);
 }
@@ -112,8 +117,10 @@ int main() {
       .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
       .pNext = &validationFeatures,
       .flags = 0,
-      .messageSeverity = debugUtilsMessageSeverityFlagBits,
-      .messageType = debugUtilsMessageTypeFlagBits,
+      .messageSeverity =
+          (VkDebugUtilsMessageSeverityFlagsEXT)debugUtilsMessageSeverityFlagBits,
+      .messageType =
+          (VkDebugUtilsMessageTypeFlagsEXT)debugUtilsMessageTypeFlagBits,
       .pfnUserCallback = &debugCallback,
       .pUserData = NULL};
 
