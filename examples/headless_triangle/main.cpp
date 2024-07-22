@@ -3,6 +3,7 @@
 #include <fstream>
 #include <iostream>
 #include <vector>
+#include <cstring>
 #include <string>
 
 #if defined(VALIDATION_ENABLED)
