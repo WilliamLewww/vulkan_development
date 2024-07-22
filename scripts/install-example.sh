@@ -35,6 +35,10 @@ do
       echo "  -tc,  --toolchain=PATH_TO_TOOLCHAIN_FILE"
       echo "  -gve, --glslang-validator-executable=PATH_TO_glslangValidator"
       echo "  -ve,  --validation-enabled"
+      echo ""
+      echo "Examples"
+      echo "  triangle"
+      echo "  headless_triangle"
       exit
     ;;
   esac
@@ -80,8 +84,4 @@ then
   else
     make install -j${THREADS} -C ${OUT_PATH}/build/${EXAMPLE}
   fi
-else
-  echo "Examples"
-  echo "  triangle"
-  echo "  headless_triangle"
 fi
