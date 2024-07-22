@@ -29,6 +29,13 @@ do
       CMAKE_FLAGS="$CMAKE_FLAGS -DVALIDATION_ENABLED=1"
     ;;
     *)
+      echo "Usage: install-example.sh --example=TARGET_EXAMPLE"
+      echo "  -e,   --example=TARGET_EXAMPLE"
+      echo "  -t,   --threads=BUILD_THREAD_COUNT"
+      echo "  -tc,  --toolchain=PATH_TO_TOOLCHAIN_FILE"
+      echo "  -gve, --glslang-validator-executable=PATH_TO_glslangValidator"
+      echo "  -ve,  --validation-enabled"
+      exit
     ;;
   esac
 done

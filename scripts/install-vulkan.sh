@@ -31,6 +31,12 @@ do
                    -DBUILD_ICD=0"
     ;;
     *)
+      echo "Usage: install-vulkan.sh"
+      echo "  -v,  --version=SDK_VERSION"
+      echo "  -t,  --threads=BUILD_THREAD_COUNT"
+      echo "  -tc, --toolchain=PATH_TO_TOOLCHAIN_FILE"
+      echo "  -m,  --minimal-build"
+      exit
     ;;
   esac
 done
