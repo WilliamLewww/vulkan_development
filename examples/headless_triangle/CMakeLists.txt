@@ -24,17 +24,17 @@ file(GLOB SHADERS
 
 file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/shaders/headless_triangle)
 foreach(SHADER ${SHADERS})
-        get_filename_component(SHADER_NAME ${SHADER} NAME)
+  get_filename_component(SHADER_NAME ${SHADER} NAME)
 
-        add_custom_command(
-            OUTPUT shaders/headless_triangle/${SHADER_NAME}.spv
-            COMMAND ${Vulkan_GLSLANG_VALIDATOR_EXECUTABLE}
-            --target-env vulkan1.2
-            -o shaders/headless_triangle/${SHADER_NAME}.spv ${SHADER}
-            DEPENDS ${SHADER}
-        )
-        list(APPEND SHADERS_LIST
-            shaders/headless_triangle/${SHADER_NAME}.spv)
+  add_custom_command(
+      OUTPUT shaders/headless_triangle/${SHADER_NAME}.spv
+      COMMAND ${Vulkan_GLSLANG_VALIDATOR_EXECUTABLE}
+      --target-env vulkan1.2
+      -o shaders/headless_triangle/${SHADER_NAME}.spv ${SHADER}
+      DEPENDS ${SHADER}
+  )
+  list(APPEND SHADERS_LIST
+      shaders/headless_triangle/${SHADER_NAME}.spv)
 endforeach()
 
 add_custom_target(shaders DEPENDS ${SHADERS_LIST})
