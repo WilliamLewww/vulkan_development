@@ -6,8 +6,6 @@
 #include <cstring>
 #include <string>
 
-#define PRINT_MESSAGE(stream, message) stream << message << std::endl;
-
 #if defined(VALIDATION_ENABLED)
 #define STRING_RESET "\033[0m"
 #define STRING_INFO "\033[37m"
@@ -24,17 +22,17 @@ VkBool32 debugCallback(
 
   if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT) {
     message = STRING_INFO + message + STRING_RESET;
-    PRINT_MESSAGE(std::cout, message.c_str());
+    std::cout << message.c_str() << std::endl;
   }
 
   if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
     message = STRING_WARNING + message + STRING_RESET;
-    PRINT_MESSAGE(std::cerr, message.c_str());
+    std::cerr << message.c_str() << std::endl;
   }
 
   if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) {
     message = STRING_ERROR + message + STRING_RESET;
-    PRINT_MESSAGE(std::cerr, message.c_str());
+    std::cerr << message.c_str() << std::endl;
   }
 
   return VK_FALSE;
@@ -45,9 +43,7 @@ void throwExceptionVulkanAPI(VkResult result, const std::string &functionName) {
   std::string message = "Vulkan API exception: return code " +
                         std::to_string(result) + " (" + functionName + ")";
 
-#if (WIN32)
-  PRINT_MESSAGE(std::cerr, message);
-#endif
+  std::cerr << message.c_str() << std::endl;
 
   throw std::runtime_error(message);
 }

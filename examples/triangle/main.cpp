@@ -21,8 +21,6 @@
 #include <vulkan/vulkan_win32.h>
 #endif
 
-#define PRINT_MESSAGE(stream, message) stream << message << std::endl;
-
 #if defined(VALIDATION_ENABLED)
 #define STRING_RESET "\033[0m"
 #define STRING_INFO "\033[37m"
@@ -43,17 +41,17 @@ VkBool32 debugCallback(
 #else
   if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT) {
     message = STRING_INFO + message + STRING_RESET;
-    PRINT_MESSAGE(std::cout, message.c_str());
+    std::cout << message.c_str() << std::endl;
   }
 
   if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
     message = STRING_WARNING + message + STRING_RESET;
-    PRINT_MESSAGE(std::cerr, message.c_str());
+    std::cerr << message.c_str() << std::endl;
   }
 
   if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) {
     message = STRING_ERROR + message + STRING_RESET;
-    PRINT_MESSAGE(std::cerr, message.c_str());
+    std::cerr << message.c_str() << std::endl;
   }
 #endif
 
@@ -69,9 +67,8 @@ void throwExceptionVulkanAPI(VkResult result, const std::string& functionName) {
   __android_log_print(ANDROID_LOG_ERROR, "[vulkan_development]", "%s",
       message.c_str());
 #else
-#if defined(PLATFORM_WINDOWS)
-  PRINT_MESSAGE(std::cerr, message);
-#endif
+  std::cerr << message.c_str() << std::endl;
+
   throw std::runtime_error(message);
 #endif
 }
@@ -144,9 +141,8 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
   if (uMsg == WM_CLOSE) {
     exitWindow = true;
   }
-  else {
-    return (DefWindowProc(hWnd, uMsg, wParam, lParam));
-  }
+
+  return (DefWindowProc(hWnd, uMsg, wParam, lParam));
 }
 
 _Use_decl_annotations_ int APIENTRY WinMain(HINSTANCE hInstance,
